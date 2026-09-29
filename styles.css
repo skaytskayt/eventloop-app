@@ -700,6 +700,37 @@ body.is-dark { background: var(--card); }
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--line);
 }
+.wallet__edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--page);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.wallet__edit-label { font-size: 11px; color: var(--ink-soft); }
+.wallet__edit-cur { font-size: 12px; color: var(--ink-soft); }
+.wallet__input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+.wallet__input:focus { outline: none; }
+/* Стрелки спиннера съедают половину узкого поля и на телефоне бесполезны. */
+.wallet__input::-webkit-outer-spin-button,
+.wallet__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.wallet__input { -moz-appearance: textfield; appearance: textfield; }
+
 .wallet__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .wallet__name { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
 .wallet__left { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }

@@ -854,8 +854,36 @@
       row.appendChild(track);
 
       row.appendChild(el('p', 'wallet__note', 'из ' + rub(limit)));
+      row.appendChild(walletInput(code, limit));
       box.appendChild(row);
     });
+  }
+
+  /* Баланс кошелька руками. Бот присылает суммы ссылкой, но на демо ссылки
+   * может не быть, да и проверить «а если денег меньше» иначе нечем.
+   * Событие change, а не input: перерисовка на каждой набранной цифре
+   * вырывала бы поле из-под пальца. */
+  function walletInput(code, limit) {
+    var box = el('label', 'wallet__edit');
+    box.appendChild(el('span', 'wallet__edit-label', 'Баланс'));
+
+    var input = el('input', 'wallet__input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = String(WALLETS[code].share);
+    input.step = '100';
+    input.inputMode = 'numeric';
+    input.value = String(limit);
+    input.addEventListener('change', function () {
+      var v = Math.round(Number(input.value));
+      if (!isFinite(v)) { render(); return; }
+      state.card[code] = Math.min(Math.max(v, 0), WALLETS[code].share);
+      save();
+      render();
+    });
+    box.appendChild(input);
+    box.appendChild(el('span', 'wallet__edit-cur', '₽'));
+    return box;
   }
 
   function renderBought() {
