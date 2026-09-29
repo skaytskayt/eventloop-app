@@ -875,19 +875,28 @@
    * Событие change, а не input: перерисовка на каждой набранной цифре
    * вырывала бы поле из-под пальца. */
   function walletEdit(code, left) {
-    if (state.editWallet !== code) {
-      var pencil = el('button', 'wallet__pencil');
-      pencil.type = 'button';
-      pencil.title = 'Изменить баланс';
-      pencil.setAttribute('aria-label', 'Изменить баланс: ' + WALLETS[code].title);
-      pencil.appendChild(icon('pencil', 14));
-      pencil.addEventListener('click', function () {
-        state.editWallet = code;
-        render();
-      });
-      return pencil;
-    }
+    if (state.editWallet === code) { return walletField(code, left); }
 
+    var pencil = el('button', 'wallet__pencil');
+    pencil.type = 'button';
+    pencil.title = 'Изменить баланс';
+    pencil.setAttribute('aria-label', 'Изменить баланс: ' + WALLETS[code].title);
+    pencil.appendChild(icon('pencil', 14));
+    // Поле подставляется на место карандаша, а фокус берётся прямо в
+    // обработчике нажатия: focus() после перерисовки или из setTimeout
+    // мобильные браузеры игнорируют и клавиатуру не показывают.
+    pencil.addEventListener('click', function () {
+      state.editWallet = code;
+      var field = walletField(code, left);
+      pencil.replaceWith(field);
+      var input = field.querySelector('input');
+      input.focus();
+      input.select();
+    });
+    return pencil;
+  }
+
+  function walletField(code, left) {
     var box = el('label', 'wallet__edit');
     var input = el('input', 'wallet__input');
     input.type = 'number';
@@ -905,7 +914,6 @@
     });
     box.appendChild(input);
     box.appendChild(el('span', 'wallet__edit-cur', '₽'));
-    setTimeout(function () { input.focus(); input.select(); }, 0);
     return box;
 
     function apply(raw) {
