@@ -1171,6 +1171,19 @@
     });
   }
 
+  /* Логотип уезжает вместе с содержимым, а не висит прибитым сверху.
+   * Узел в разметке один, поэтому он переезжает в скролл активного экрана.
+   * Подробная карточка — исключение: её тело перерисовывается целиком и
+   * снесло бы логотип вместе с остальным. */
+  var topbar = document.querySelector('.topbar');
+  var appBox = document.querySelector('.app');
+
+  function placeTopbar() {
+    var scroll = document.querySelector('#' + state.screen + ' .screen__scroll');
+    var host = (scroll && state.screen !== 'screen-detail') ? scroll : appBox;
+    if (host.firstChild !== topbar) { host.insertBefore(topbar, host.firstChild); }
+  }
+
   function render() {
     renderFilters('feed-filters');
     renderFilters('swipe-filters');
@@ -1179,6 +1192,7 @@
       if (s) { s.classList.toggle('is-active', id === state.screen); }
     });
     document.body.classList.toggle('is-dark', !!DARK[state.screen]);
+    placeTopbar();
     renderNav();
     renderFeed();
     renderDeck();

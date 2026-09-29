@@ -568,7 +568,7 @@ body.is-dark { background: var(--card); }
 .welcome__sub { margin: 16px 0 0; font-size: 15px; line-height: 1.4; color: #928daa; }
 .welcome__hint {
   display: flex; align-items: center; justify-content: center; gap: 2px;
-  width: 112px; height: 46px; margin-top: 30px; padding: 0;
+  width: 92px; height: 54px; margin-top: 30px; padding: 0;
   border: 0; border-radius: var(--r-pill); background: #efecfd; color: var(--violet);
   cursor: pointer; font: inherit;
 }
