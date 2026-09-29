@@ -555,7 +555,6 @@
 
     var ph = photo(item, 'bigcard__photo');
     ph.appendChild(el('span', 'counter', shown + '/' + total));
-    openOnTap(card, item, card);
     card.appendChild(ph);
 
     var body = el('div', 'bigcard__body');
@@ -617,7 +616,6 @@
 
     var card = el('article', 'swipecard');
     var ph = photo(item, 'swipecard__photo');
-    openOnTap(card, item, null);
 
     // На макете бейдж, заголовок и дата лежат поверх фотографии, а не под ней.
     var over = el('div', 'swipecard__over');
