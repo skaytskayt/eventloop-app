@@ -18,7 +18,7 @@
 
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [] };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -68,6 +68,7 @@
     try { localStorage.setItem(KEY, JSON.stringify({
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
+        spentBase: state.spentBase,
         cats: state.cats, date: state.date, km: state.km
       })); } catch (e) { /* приватный режим */ }
   }
@@ -84,6 +85,9 @@
       if (v && typeof v.pending === 'number') { state.pending = v.pending; }
       if (v && v.card && validAmount(v.card.CINEMA, 'CINEMA') && validAmount(v.card.OTHER, 'OTHER')) {
         state.card = { CINEMA: v.card.CINEMA, OTHER: v.card.OTHER };
+      }
+      if (v && v.spentBase && validAmount(v.spentBase.CINEMA, 'CINEMA') && validAmount(v.spentBase.OTHER, 'OTHER')) {
+        state.spentBase = { CINEMA: v.spentBase.CINEMA, OTHER: v.spentBase.OTHER };
       }
       if (v && v.cats instanceof Array) { state.cats = v.cats; }
       if (v && DATES[v.date]) { state.date = v.date; }
@@ -116,6 +120,7 @@
       var value = Math.round(Number(raw));
       if (!validAmount(value, pair[1])) { return; }
       state.card[pair[1]] = value;
+      state.spentBase[pair[1]] = spentIn(pair[1]);
       changed = true;
     });
     if (changed) { save(); }
@@ -154,6 +159,7 @@
   // Пока бот не сказал иного, считаем карту полной. Номиналы берутся отсюда же,
   // чтобы 2000 и 3000 не разъехались по двум местам.
   state.card = { CINEMA: WALLETS.CINEMA.share, OTHER: WALLETS.OTHER.share };
+  state.spentBase = { CINEMA: 0, OTHER: 0 };
 
   /* Сколько на каждом кошельке. Бот спрашивает обе суммы отдельно и передаёт
    * их в ссылке (?cinema=1200&other=2500). Без параметров считаем от полного
@@ -170,8 +176,15 @@
     }, 0);
   }
 
+  /* Введённый вручную баланс — это остаток «здесь и сейчас», поэтому билеты,
+   * купленные до правки, второй раз не вычитаются. spentBase помнит, сколько
+   * было потрачено на момент ввода; вычитается только то, что потрачено после. */
+  function spentSince(wallet) {
+    return Math.max(0, spentIn(wallet) - state.spentBase[wallet]);
+  }
+
   function leftIn(wallet) {
-    return Math.max(0, limitOf(wallet) - spentIn(wallet));
+    return Math.max(0, limitOf(wallet) - spentSince(wallet));
   }
 
   function isBought(eventId) {
@@ -852,7 +865,7 @@
       row.appendChild(track);
 
       row.appendChild(el('p', 'wallet__note', 'из ' + rub(limit)));
-      row.appendChild(walletInput(code, limit));
+      row.appendChild(walletEdit(code, left));
       box.appendChild(row);
     });
   }
@@ -861,27 +874,52 @@
    * может не быть, да и проверить «а если денег меньше» иначе нечем.
    * Событие change, а не input: перерисовка на каждой набранной цифре
    * вырывала бы поле из-под пальца. */
-  function walletInput(code, limit) {
-    var box = el('label', 'wallet__edit');
-    box.appendChild(el('span', 'wallet__edit-label', 'Баланс'));
+  function walletEdit(code, left) {
+    if (state.editWallet !== code) {
+      var pencil = el('button', 'wallet__pencil');
+      pencil.type = 'button';
+      pencil.title = 'Изменить баланс';
+      pencil.setAttribute('aria-label', 'Изменить баланс: ' + WALLETS[code].title);
+      pencil.appendChild(icon('pencil', 14));
+      pencil.addEventListener('click', function () {
+        state.editWallet = code;
+        render();
+      });
+      return pencil;
+    }
 
+    var box = el('label', 'wallet__edit');
     var input = el('input', 'wallet__input');
     input.type = 'number';
     input.min = '0';
     input.max = String(WALLETS[code].share);
     input.step = '100';
     input.inputMode = 'numeric';
-    input.value = String(limit);
-    input.addEventListener('change', function () {
-      var v = Math.round(Number(input.value));
-      if (!isFinite(v)) { render(); return; }
-      state.card[code] = Math.min(Math.max(v, 0), WALLETS[code].share);
-      save();
-      render();
+    input.value = String(left);
+    // change, а не input: перерисовка на каждой цифре вырывала бы поле
+    // из-под пальца. Esc закрывает без правки.
+    input.addEventListener('change', function () { apply(input.value); });
+    input.addEventListener('blur', function () { apply(input.value); });
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { state.editWallet = null; render(); }
     });
     box.appendChild(input);
     box.appendChild(el('span', 'wallet__edit-cur', '₽'));
+    setTimeout(function () { input.focus(); input.select(); }, 0);
     return box;
+
+    function apply(raw) {
+      if (state.editWallet !== code) { return; }
+      var v = Math.round(Number(raw));
+      state.editWallet = null;
+      if (isFinite(v)) {
+        state.card[code] = Math.min(Math.max(v, 0), WALLETS[code].share);
+        // Всё, что куплено раньше, уже учтено во введённой сумме.
+        state.spentBase[code] = spentIn(code);
+        save();
+      }
+      render();
+    }
   }
 
   function renderBought() {
