@@ -163,30 +163,6 @@ body.is-dark { background: var(--card); }
 .screen--light { background: var(--page); color: var(--ink); }
 .screen--dark { background: var(--card); color: var(--on-card); }
 
-/* ---- Шапка первого экрана ---------------------------------------------- */
-
-.lead { position: relative; padding: 26px var(--gutter) 0; overflow: hidden; }
-
-
-.lead__title {
-  position: relative;
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.16;
-  font-weight: 800;
-  letter-spacing: -.02em;
-}
-
-.lead__sub {
-  position: relative;
-  margin: 10px 0 0;
-  max-width: 320px;
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--ink-soft);
-}
-.lead__sub b { color: var(--ink); font-weight: 700; }
-
 /* ---- Большая карточка подборки ----------------------------------------- */
 
 .feed-card-slot { padding: 14px var(--gutter) 0; }
@@ -592,12 +568,12 @@ body.is-dark { background: var(--card); }
 .welcome__sub { margin: 16px 0 0; font-size: 15px; line-height: 1.4; color: #928daa; }
 .welcome__hint {
   display: flex; align-items: center; justify-content: center; gap: 2px;
-  width: 96px; height: 34px; margin-top: 30px; padding: 0 0 0 6px;
+  width: 112px; height: 46px; margin-top: 30px; padding: 0;
   border: 0; border-radius: var(--r-pill); background: #efecfd; color: var(--violet);
   cursor: pointer; font: inherit;
 }
-.welcome__hand { width: 26px; height: 26px; margin-bottom: -6px; }
-.welcome__arrow { width: 18px; height: 18px; margin-top: -8px; animation: welcome-nudge 1.6s ease-in-out infinite; }
+.welcome__hand { width: 26px; height: 26px; }
+.welcome__arrow { width: 18px; height: 18px; animation: welcome-nudge 1.6s ease-in-out infinite; }
 .welcome__cta { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--violet); }
 @keyframes welcome-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
 @media (prefers-reduced-motion: reduce) { .welcome__arrow { animation: none; } }

@@ -531,9 +531,7 @@
 
   function renderFeed() {
     var slot = document.getElementById('feed-card');
-    var lead = document.getElementById('feed-lead');
     slot.replaceChildren();
-    lead.replaceChildren();
     document.getElementById('feed-back').hidden = !state.undo.length;
 
     var list = deck();
@@ -543,10 +541,6 @@
       slot.appendChild(emptyBanner());
       return;
     }
-
-    lead.appendChild(document.createTextNode('Мы собрали для тебя '));
-    lead.appendChild(el('b', null, list.length + ' ' + Fmt.plural(list.length, 'событие', 'события', 'событий')));
-    lead.appendChild(document.createTextNode('. Свайпни вправо, если нравится, влево — если нет'));
 
     // Счётчик и полоса прямо на входе: без них непонятно, что это лента,
     // а не единственное предложение.
