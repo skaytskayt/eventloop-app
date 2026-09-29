@@ -1342,6 +1342,16 @@
     if (wentAway) { wentAway = false; askPurchase(); }
   });
 
+  /* Safari на iOS не слушает user-scalable=no, поэтому щипок и двойное
+   * касание гасим руками. passive: false — иначе preventDefault не сработает. */
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (name) {
+    document.addEventListener(name, function (e) { e.preventDefault(); });
+  });
+  document.addEventListener('touchmove', function (e) {
+    if (e.touches.length > 1) { e.preventDefault(); }
+  }, { passive: false });
+  document.addEventListener('dblclick', function (e) { e.preventDefault(); });
+
   read();
   readBalanceFromLink();
   render();

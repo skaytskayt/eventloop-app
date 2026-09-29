@@ -104,6 +104,8 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
+  /* Двойное касание не должно зумить страницу: это Mini App, а не сайт. */
+  touch-action: manipulation;
   font-family: var(--font);
   background: var(--page);
   color: var(--ink);
