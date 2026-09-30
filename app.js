@@ -814,7 +814,10 @@
       heart.type = 'button';
       heart.setAttribute('aria-label', liked ? 'Убрать из избранного' : 'Пойду');
       heart.appendChild(icon(liked ? 'heart-fill' : 'heart', 20));
-      heart.addEventListener('click', function () {
+      heart.addEventListener('click', function (e) {
+        // Иконка ниже заменяется прямо в этом обработчике, и строка уже не
+        // узнала бы в выкинутом из DOM узле кнопку — открыла бы карточку.
+        e.stopPropagation();
         if (heart.classList.contains('is-liking') || heart.classList.contains('is-unliking')) { return; }
         if (liked) {
           heart.classList.add('row__heart--off', 'is-unliking');
