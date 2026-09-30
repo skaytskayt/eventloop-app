@@ -100,12 +100,23 @@
         && value >= 0 && value <= WALLETS[code].share;
   }
 
-  /* Суммы из ссылки бота: ?cinema=1200&other=2500. Приходят извне, поэтому
+  /* Суммы от бота. Кнопка бота открывает приложение внутри MAX и кладёт их
+   * в параметр запуска как «1200_2500» (кино_остальное): MAX пропускает туда
+   * только латиницу, цифры, «_» и «-». Старый вид ?cinema=1200&other=2500
+   * тоже понимаем — для прямой ссылки. Суммы приходят извне, поэтому
    * проверяются как чужой ввод. Свежая ссылка важнее сохранённого — человек
    * мог сходить в бот именно затем, чтобы поправить суммы.
    *
    * Кошельки читаются независимо: если бот передал только один параметр,
    * второй остаётся прежним, а не обнуляется. */
+  function startParam(params) {
+    try {
+      var p = window.WebApp && window.WebApp.initDataUnsafe && window.WebApp.initDataUnsafe.start_param;
+      if (typeof p === 'string' && p) { return p; }
+    } catch (e) { /* моста нет — открыто не из MAX */ }
+    return params.get('WebAppStartParam') || '';
+  }
+
   function readBalanceFromLink() {
     var params;
     try {
@@ -113,9 +124,11 @@
     } catch (e) {
       return;
     }
+    var fromBot = /^(\d+)_(\d+)$/.exec(startParam(params));
+    var amounts = fromBot ? { cinema: fromBot[1], other: fromBot[2] } : {};
     var changed = false;
     [['cinema', 'CINEMA'], ['other', 'OTHER']].forEach(function (pair) {
-      var raw = params.get(pair[0]);
+      var raw = pair[0] in amounts ? amounts[pair[0]] : params.get(pair[0]);
       if (raw === null || raw.trim() === '') { return; }
       var value = Math.round(Number(raw));
       if (!validAmount(value, pair[1])) { return; }
@@ -161,8 +174,8 @@
   state.card = { CINEMA: WALLETS.CINEMA.share, OTHER: WALLETS.OTHER.share };
   state.spentBase = { CINEMA: 0, OTHER: 0 };
 
-  /* Сколько на каждом кошельке. Бот спрашивает обе суммы отдельно и передаёт
-   * их в ссылке (?cinema=1200&other=2500). Без параметров считаем от полного
+  /* Сколько на каждом кошельке. Бот узнаёт обе суммы и передаёт их в параметре
+   * запуска кнопки (1200_2500). Без параметров считаем от полного
    * номинала: приложение должно открываться и по прямой ссылке, без бота. */
   function limitOf(code) {
     return state.card[code];
