@@ -68,7 +68,7 @@
     try { localStorage.setItem(KEY, JSON.stringify({
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
-        spentBase: state.spentBase,
+        spentBase: state.spentBase, undo: state.undo,
         cats: state.cats, date: state.date, km: state.km
       })); } catch (e) { /* приватный режим */ }
   }
@@ -89,6 +89,7 @@
       if (v && v.spentBase && validAmount(v.spentBase.CINEMA, 'CINEMA') && validAmount(v.spentBase.OTHER, 'OTHER')) {
         state.spentBase = { CINEMA: v.spentBase.CINEMA, OTHER: v.spentBase.OTHER };
       }
+      if (v && v.undo instanceof Array) { state.undo = v.undo.filter(function (id) { return typeof id === 'number'; }); }
       if (v && v.cats instanceof Array) { state.cats = v.cats; }
       if (v && DATES[v.date]) { state.date = v.date; }
       if (v && KMS.indexOf(v.km) >= 0) { state.km = v.km; }
@@ -730,8 +731,9 @@
 
   /* Вернуть предыдущую карточку: снимает последнюю оценку и ставит колоду на
    * это же событие. Промах пальцем по «Не нравится» иначе не исправить —
-   * событие молча уезжало из подборки. Стопка живёт до перезагрузки: в
-   * localStorage её класть незачем, это исправление только что сделанного. */
+   * событие молча уезжало из подборки. Стопка сохраняется вместе с отметками:
+   * MAX перезагружает свёрнутое приложение, и без этого стрелка пропадала
+   * посреди подборки — оценённое до перезагрузки было уже не вернуть. */
   function undoLast() {
     var id = state.undo.pop();
     if (id === undefined) { return; }
