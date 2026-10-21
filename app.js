@@ -3,12 +3,27 @@
  *
  * Разметка строится узлами через DOM API. HTML-строки не используются осознанно:
  * на следующем шаге в эти же поля приедут данные с сервера, и склейка строк
- * стала бы дырой. Состояние живёт в localStorage до появления серверной синхронизации.
+ * стала бы дырой. Состояние живёт в localStorage, а при открытии из MAX ещё и
+ * на сервере — тогда источник истины сервер, а localStorage только кеш.
  */
 (function () {
   'use strict';
 
   var KEY = 'eventloop.miniapp.v2';
+  // Адрес бэкенда из meta eventloop-api. Пусто — тот же адрес, что у приложения.
+  var API = (function () {
+    var m = document.querySelector('meta[name="eventloop-api"]');
+    return m ? (m.getAttribute('content') || '').replace(/\/+$/, '') : '';
+  })();
+  // Подписанный initData есть, только когда приложение открыто внутри MAX.
+  // Без него сервер не узнает, чьи это отметки, и в /api не уходит ничего.
+  var INIT = (function () {
+    try {
+      var d = window.WebApp && window.WebApp.initData;
+      if (typeof d === 'string' && d) { return d; }
+    } catch (e) { /* моста нет — открыто не из MAX */ }
+    return '';
+  })();
   var SVG = 'http://www.w3.org/2000/svg';
   var XLINK = 'http://www.w3.org/1999/xlink';
 
@@ -18,7 +33,8 @@
 
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null };
+  // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null, origin: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -69,7 +85,7 @@
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
         spentBase: state.spentBase, undo: state.undo,
-        cats: state.cats, date: state.date, km: state.km
+        cats: state.cats, date: state.date, km: state.km, origin: state.origin
       })); } catch (e) { /* приватный режим */ }
   }
 
@@ -93,7 +109,15 @@
       if (v && v.cats instanceof Array) { state.cats = v.cats; }
       if (v && DATES[v.date]) { state.date = v.date; }
       if (v && KMS.indexOf(v.km) >= 0) { state.km = v.km; }
+      if (v && v.origin && validOrigin(v.origin.lat, v.origin.lon)) {
+        state.origin = { lat: v.origin.lat, lon: v.origin.lon };
+      }
     } catch (e) { /* пустое хранилище — не ошибка */ }
+  }
+
+  function validOrigin(lat, lon) {
+    return typeof lat === 'number' && isFinite(lat) && lat >= -90 && lat <= 90
+        && typeof lon === 'number' && isFinite(lon) && lon >= -180 && lon <= 180;
   }
 
   function validAmount(value, code) {
@@ -109,7 +133,10 @@
    * мог сходить в бот именно затем, чтобы поправить суммы.
    *
    * Кошельки читаются независимо: если бот передал только один параметр,
-   * второй остаётся прежним, а не обнуляется. */
+   * второй остаётся прежним, а не обнуляется.
+   *
+   * С точкой отсчёта бот шлёт четыре части: «1200_2500_557961_491064» —
+   * суммы те же, координаты разбирает readOriginFromLink. */
   function startParam(params) {
     try {
       var p = window.WebApp && window.WebApp.initDataUnsafe && window.WebApp.initDataUnsafe.start_param;
@@ -125,7 +152,7 @@
     } catch (e) {
       return;
     }
-    var fromBot = /^(\d+)_(\d+)$/.exec(startParam(params));
+    var fromBot = /^(\d+)_(\d+)(?:_-?\d{1,7}_-?\d{1,7})?$/.exec(startParam(params));
     var amounts = fromBot ? { cinema: fromBot[1], other: fromBot[2] } : {};
     var changed = false;
     [['cinema', 'CINEMA'], ['other', 'OTHER']].forEach(function (pair) {
@@ -140,6 +167,30 @@
     if (changed) { save(); }
   }
 
+  /* Точка отсчёта от бота: широта и долгота, умноженные на 10000, — целыми,
+   * потому что точку и кириллицу MAX в параметр не пропускает. Ссылка без
+   * координат пришла после «Пропустить» — свежая ссылка важнее сохранённого,
+   * как с суммами. Прямая ссылка без параметра сохранённое не трогает. */
+  function readOriginFromLink() {
+    var params;
+    try {
+      params = new URLSearchParams(location.search);
+    } catch (e) {
+      return;
+    }
+    var m = /^\d+_\d+(?:_(-?\d{1,7})_(-?\d{1,7}))?$/.exec(startParam(params));
+    if (!m) { return; }
+    if (m[1] === undefined) {
+      state.origin = null;
+    } else {
+      var lat = Number(m[1]) / 10000;
+      var lon = Number(m[2]) / 10000;
+      if (!validOrigin(lat, lon)) { return; }
+      state.origin = { lat: lat, lon: lon };
+    }
+    save();
+  }
+
   /* Записи о покупках правят баланс, поэтому из хранилища берём только
    * целые: кошелёк из известных, цена числом. Битая запись молча уронила бы
    * арифметику всей карты. */
@@ -147,7 +198,78 @@
     return b && typeof b.eventId === 'number' && typeof b.priceRub === 'number' && !!WALLETS[b.wallet];
   }
 
-  function loadFeed() { return MOCK_EVENTS; }
+  /* ---- Точка отсчёта и город ленты -------------------------------------
+   * Расстояние считается здесь, а не лежит в data.js: оно зависит от точки,
+   * выбранной в боте. Город ленты — тот, чей центр ближе к точке.
+   */
+  var CITIES = {
+    moscow: { title: 'Москва', lat: 55.7558, lon: 37.6173 },
+    kazan: { title: 'Казань', lat: 55.7961, lon: 49.1064 }
+  };
+
+  // Держать в паре с Screens.ORIGINS; синхронность проверяет ScreensMiniAppTest.
+  // Названия нужны для профиля: payload несёт только координаты.
+  var ORIGINS = [
+    { name: 'Москва · центр', lat: 55.7558, lon: 37.6173 },
+    { name: 'Москва · м. ВДНХ', lat: 55.8196, lon: 37.6408 },
+    { name: 'Москва · м. Юго-Западная', lat: 55.6631, lon: 37.4829 },
+    { name: 'Москва · м. Выхино', lat: 55.7163, lon: 37.8164 },
+    { name: 'Казань · центр', lat: 55.7961, lon: 49.1064 },
+    { name: 'Казань · м. Козья слобода', lat: 55.8182, lon: 49.0999 },
+    { name: 'Казань · м. Горки', lat: 55.7600, lon: 49.1916 },
+    { name: 'Казань · м. Проспект Победы', lat: 55.7504, lon: 49.2096 }
+  ];
+
+  // Та же формула и тот же радиус, что geo/Haversine.java.
+  function haversineKm(lat1, lon1, lat2, lon2) {
+    var rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad;
+    var dLon = (lon2 - lon1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+      + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+
+  function originPoint() {
+    return state.origin || CITIES.moscow;
+  }
+
+  function cityCode() {
+    var p = originPoint();
+    var best = null;
+    var bestKm = Infinity;
+    Object.keys(CITIES).forEach(function (code) {
+      var km = haversineKm(p.lat, p.lon, CITIES[code].lat, CITIES[code].lon);
+      if (km < bestKm) { bestKm = km; best = code; }
+    });
+    return best;
+  }
+
+  function originLabel() {
+    if (!state.origin) { return 'Москва · центр'; }
+    for (var i = 0; i < ORIGINS.length; i++) {
+      if (Math.abs(ORIGINS[i].lat - state.origin.lat) <= 0.0002
+          && Math.abs(ORIGINS[i].lon - state.origin.lon) <= 0.0002) {
+        return ORIGINS[i].name;
+      }
+    }
+    return 'По геолокации · ' + CITIES[cityCode()].title;
+  }
+
+  /* Лента и счётчики — только своего города. Избранное, купленное и якоря
+   * вкуса ищутся по всей афише (MOCK_EVENTS): смена города не должна их терять. */
+  var FEED = [];
+
+  function prepareFeed() {
+    var p = originPoint();
+    var city = cityCode();
+    MOCK_EVENTS.forEach(function (e) {
+      e.distanceKm = Math.round(haversineKm(p.lat, p.lon, e.venueLat, e.venueLon) * 10) / 10;
+    });
+    FEED = MOCK_EVENTS.filter(function (e) { return e.city === city; });
+  }
+
+  function loadFeed() { return FEED; }
 
   function marked(id) {
     return state.liked.indexOf(id) >= 0 || state.saved.indexOf(id) >= 0
@@ -229,8 +351,70 @@
     return loadFeed().filter(fits);
   }
 
+  /* Колода по вкусу: сверху то, что похоже на уже отмеченное. Без истории —
+   * исходный порядок, иначе первая же подборка выглядела бы случайной. */
   function deck() {
-    return pool().filter(function (e) { return !marked(e.eventId); });
+    var list = pool().filter(function (e) { return !marked(e.eventId); });
+    var refs = anchors();
+    if (!refs.length) { return list; }
+    var scored = list.map(function (e, i) { return { item: e, i: i, score: taste(e, refs).score }; });
+    // Равные — по исходному индексу явно: стабильность sort в старых
+    // WebView не гарантирована.
+    scored.sort(function (a, b) { return b.score - a.score || a.i - b.i; });
+    return scored.map(function (s) { return s.item; });
+  }
+
+  // За что кандидат похож на опорное событие. Категория весит больше всего:
+  // кто лайкнул три спектакля, хочет театр, а не просто что-то рядом.
+  var TASTE = { category: 3, venue: 2, price: 1, distance: 1 };
+  // Вклад опорного события: «Пойду» и покупка — явный вкус, отложенное —
+  // полусогласие, дизлайк тянет похожее вниз.
+  var WEIGHT = { liked: 1, bought: 1, saved: 0.5, disliked: -1 };
+
+  function anchors() {
+    var out = [];
+    function add(ids, kind) {
+      ids.forEach(function (id) {
+        var e = byEventId(id);
+        if (e) { out.push({ item: e, kind: kind, weight: WEIGHT[kind] }); }
+      });
+    }
+    add(state.liked, 'liked');
+    add(state.bought.map(function (b) { return b.eventId; }), 'bought');
+    add(state.saved, 'saved');
+    add(state.disliked, 'disliked');
+    return out;
+  }
+
+  function likeness(a, b) {
+    var s = 0;
+    if (a.category === b.category) { s += TASTE.category; }
+    if (a.venueName === b.venueName) { s += TASTE.venue; }
+    if (Math.abs(a.priceRub - b.priceRub) <= 0.3 * b.priceRub) { s += TASTE.price; }
+    if (Math.abs(a.distanceKm - b.distanceKm) <= 2) { s += TASTE.distance; }
+    return s;
+  }
+
+  /* Счёт кандидата и событие, которое внесло в него больше всего. Объяснять
+   * выбор можно только тем, что человеку понравилось, поэтому because —
+   * только из «Пойду» и купленного. */
+  function taste(item, refs) {
+    var score = 0, best = 0, because = null;
+    (refs || anchors()).forEach(function (r) {
+      var part = r.weight * likeness(item, r.item);
+      score += part;
+      if ((r.kind === 'liked' || r.kind === 'bought') && part > best) {
+        best = part;
+        because = r.item;
+      }
+    });
+    return { score: score, because: because };
+  }
+
+  function becauseLine(item) {
+    var t = taste(item);
+    if (t.score <= 0 || !t.because) { return null; }
+    return el('p', 'because', 'Потому что тебе понравилось «' + t.because.title + '»');
   }
 
   function fits(e) {
@@ -269,7 +453,7 @@
 
   function listOf(kind) {
     var ids = kind === 'liked' ? state.liked : state.saved;
-    return loadFeed().filter(function (e) { return ids.indexOf(e.eventId) >= 0; });
+    return MOCK_EVENTS.filter(function (e) { return ids.indexOf(e.eventId) >= 0; });
   }
 
   function mark(item, kind) {
@@ -285,6 +469,74 @@
     state.saved = state.saved.filter(function (x) { return x !== id; });
     state.disliked = state.disliked.filter(function (x) { return x !== id; });
     save();
+  }
+
+  /* ---- Синхронизация с сервером ----------------------------------------
+   * Только при открытии из MAX: без подписанного initData ни одного запроса
+   * к /api не уходит. Ответа интерфейс не ждёт — сеть может отвалиться,
+   * а свайп должен оставаться мгновенным. */
+  var NEUTRAL = { VIEW: true, CLICK_BUY: true, PURCHASE_NO: true };
+  // Было ли с запуска действие, меняющее отметки. Тогда ответ pull() уже
+  // устарел и применять его нельзя — откатил бы только что сделанную оценку.
+  var touched = false;
+  var seen = {};
+
+  function send(action, eventId) {
+    if (!INIT) { return; }
+    var item = byEventId(eventId);
+    if (!item) { return; }
+    if (!NEUTRAL[action]) { touched = true; }
+    try {
+      fetch(API + '/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Init-Data': INIT },
+        body: JSON.stringify({ eventId: item.eventId, action: action, priceRub: item.priceRub, category: item.category }),
+        // «Купить билет» уводит на сайт кассы — запрос должен это пережить.
+        keepalive: true
+      }).catch(function () { /* сеть — не повод мешать свайпу */ });
+    } catch (e) { /* WebView без fetch — работаем на localStorage */ }
+  }
+
+  // Просмотр считается один раз за сессию: перерисовки не должны раздувать воронку.
+  function viewed(item) {
+    if (seen[item.eventId]) { return; }
+    seen[item.eventId] = true;
+    send('VIEW', item.eventId);
+  }
+
+  function pull() {
+    if (!INIT) { return; }
+    try {
+      fetch(API + '/api/me/reactions', { headers: { 'X-Init-Data': INIT } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(applyServer)
+        .catch(function () { /* нет связи — остаётся локальное */ });
+    } catch (e) { /* WebView без fetch */ }
+  }
+
+  /* Сервер — источник истины, но пустой ответ локальное не стирает: первый
+   * запуск после обновления не должен терять прежнюю историю браузера.
+   * Ответ — внешние данные, поэтому битые записи пропускаются. Ожидающий
+   * вопрос о покупке, фильтры, кошельки и стопка undo остаются как были. */
+  function applyServer(list) {
+    if (!Array.isArray(list) || !list.length || touched) { return; }
+    var lists = { LIKED: 'liked', SAVED: 'saved', DISLIKED: 'disliked' };
+    var fresh = { liked: [], saved: [], disliked: [], bought: [] };
+    list.forEach(function (r) {
+      if (!r || typeof r.eventId !== 'number') { return; }
+      if (lists[r.kind]) {
+        fresh[lists[r.kind]].push(r.eventId);
+      } else if (r.kind === 'BOUGHT') {
+        var b = { eventId: r.eventId, priceRub: r.priceRub, wallet: walletOf(r.category), at: r.at };
+        if (validPurchase(b)) { fresh.bought.push(b); }
+      }
+    });
+    state.liked = fresh.liked;
+    state.saved = fresh.saved;
+    state.disliked = fresh.disliked;
+    state.bought = fresh.bought;
+    save();
+    render();
   }
 
   function go(screen) {
@@ -369,10 +621,13 @@
     disliked: 'Скрыли из подборки'
   };
 
+  var ACTION = { liked: 'LIKE', saved: 'SAVE', disliked: 'DISLIKE' };
+
   function react(item, kind) {
     state.undo.push(item.eventId);
     if (state.undo.length > 30) { state.undo.shift(); }
     mark(item, kind);
+    send(ACTION[kind], item.eventId);
     if (state.index >= deck().length) { state.index = 0; }
     if (state.screen === 'screen-detail') {
       // Открытая карточка — единственное место, где оценка ничего не меняла на
@@ -578,6 +833,8 @@
     document.getElementById('feed-bar').style.width = Math.round(shown / total * 100) + '%';
 
     var item = list[state.index];
+    // render() рисует подборку и под приветствием — просмотр только на её экране.
+    if (state.screen === 'screen-feed') { viewed(item); }
     var card = el('article', 'bigcard');
 
     var ph = photo(item, 'bigcard__photo');
@@ -587,8 +844,10 @@
     var body = el('div', 'bigcard__body');
     body.appendChild(el('span', 'badge', Cat.title(item.category)));
     body.appendChild(el('h2', 'card__title', item.title));
+    var why = becauseLine(item);
+    if (why) { body.appendChild(why); }
     body.appendChild(metaRow('calendar', whenText(item.startsAt)));
-    body.appendChild(metaRow('pin', item.venueName));
+    body.appendChild(metaRow('pin', item.venueName + ' · ' + Fmt.distance(item.distanceKm)));
     body.appendChild(priceBlock(item, false));
     body.appendChild(actions(item));
     body.appendChild(saveButton(item));
@@ -635,6 +894,7 @@
 
     if (state.index >= list.length) { state.index = 0; }
     var item = list[state.index];
+    if (state.screen === 'screen-swipe') { viewed(item); }
     var total = pool().length;
     var shown = total - list.length + state.index + 1;
 
@@ -648,8 +908,10 @@
     var over = el('div', 'swipecard__over');
     over.appendChild(el('span', 'badge', Cat.title(item.category)));
     over.appendChild(el('h2', 'card__title', item.title));
+    var why = becauseLine(item);
+    if (why) { over.appendChild(why); }
     over.appendChild(metaRow('calendar', whenText(item.startsAt)));
-    over.appendChild(metaRow('pin', item.venueName));
+    over.appendChild(metaRow('pin', item.venueName + ' · ' + Fmt.distance(item.distanceKm)));
     ph.appendChild(over);
     card.appendChild(ph);
 
@@ -738,6 +1000,7 @@
     var id = state.undo.pop();
     if (id === undefined) { return; }
     forget(id);
+    send('UNDO', id);
     var list = deck();
     for (var i = 0; i < list.length; i++) {
       if (list[i].eventId === id) { state.index = i; break; }
@@ -804,6 +1067,7 @@
         buy.addEventListener('click', function () {
           state.pending = item.eventId;
           save();
+          send('CLICK_BUY', item.eventId);
         });
         main.appendChild(buy);
       }
@@ -831,7 +1095,13 @@
         }
         row.classList.add('is-leaving');
         setTimeout(function () {
-          if (liked) { forget(item.eventId); } else { mark(item, 'liked'); }
+          if (liked) {
+            forget(item.eventId);
+            send('UNDO', item.eventId);
+          } else {
+            mark(item, 'liked');
+            send('LIKE', item.eventId);
+          }
           render();
           // Карточка уезжает с текущей вкладки, а появляется на соседней,
           // и переключать вкладку под человеком во время разбора списка
@@ -855,6 +1125,8 @@
     document.getElementById('profile-note').textContent = count
       ? 'Осталось после ' + count + ' ' + Fmt.plural(count, 'покупки', 'покупок', 'покупок')
       : 'Баланс карты';
+    document.getElementById('profile-origin').textContent =
+      originLabel() + ' — от этой точки считается расстояние. Сменить можно в боте.';
 
     renderWallets();
     renderBought();
@@ -986,7 +1258,7 @@
   }
 
   function byEventId(id) {
-    return loadFeed().filter(function (e) { return e.eventId === id; })[0] || null;
+    return MOCK_EVENTS.filter(function (e) { return e.eventId === id; })[0] || null;
   }
 
   /* ---- Подтверждение покупки -------------------------------------------
@@ -1024,11 +1296,19 @@
     closeAsk();
   }
 
+  // «Ещё нет» — ответ для воронки. clearPending() зовут и там, где это не
+  // отказ (вопрос не к месту, покупка подтверждена), поэтому отдельно.
+  function declinePurchase() {
+    if (state.pending !== null) { send('PURCHASE_NO', state.pending); }
+    clearPending();
+  }
+
   function confirmPurchase() {
     var item = state.pending === null ? null : byEventId(state.pending);
     if (!item) { clearPending(); return; }
     var w = walletOf(item.category);
     state.bought.push({ eventId: item.eventId, priceRub: item.priceRub, wallet: w, at: Date.now() });
+    send('PURCHASE_YES', item.eventId);
     // Купленное уходит из «Пойду» в «Куплено»: в двух местах сразу
     // оно выглядело бы как два разных дела.
     forget(item.eventId);
@@ -1043,6 +1323,7 @@
     var before = state.bought.length;
     state.bought = state.bought.filter(function (b) { return b.eventId !== eventId; });
     if (state.bought.length === before) { return; }
+    send('PURCHASE_CANCEL', eventId);
     if (state.liked.indexOf(eventId) < 0) { state.liked.push(eventId); }
     save();
     toast('Покупка отменена');
@@ -1056,7 +1337,8 @@
     box.replaceChildren();
     if (state.screen !== 'screen-detail') { return; }
 
-    var item = loadFeed().filter(function (e) { return e.sessionId === state.detail; })[0];
+    // По всей афише: подробную карточку открывают и из избранного другого города.
+    var item = MOCK_EVENTS.filter(function (e) { return e.sessionId === state.detail; })[0];
     if (!item) { return; }
 
     var wrap = el('div', 'detail');
@@ -1106,7 +1388,7 @@
     }
 
     head.appendChild(metaRow('calendar', whenText(item.startsAt)));
-    head.appendChild(metaRow('pin', item.venueName));
+    head.appendChild(metaRow('pin', item.venueName + ' · ' + Fmt.distance(item.distanceKm)));
     head.appendChild(metaRow('map', item.venueAddress));
 
     var price = priceBlock(item, false);
@@ -1350,14 +1632,14 @@
   document.getElementById('tab-saved').addEventListener('click', function () { state.tab = 'saved'; render(); });
 
   document.getElementById('ask-yes').addEventListener('click', confirmPurchase);
-  document.getElementById('ask-no').addEventListener('click', clearPending);
+  document.getElementById('ask-no').addEventListener('click', declinePurchase);
   // Нажатие мимо окна и Esc считаем за «ещё нет»: молча списать деньги
   // с того, кто закрыл вопрос, нельзя.
   document.getElementById('ask').addEventListener('click', function (e) {
-    if (e.target === e.currentTarget) { clearPending(); }
+    if (e.target === e.currentTarget) { declinePurchase(); }
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !document.getElementById('ask').hidden) { clearPending(); }
+    if (e.key === 'Escape' && !document.getElementById('ask').hidden) { declinePurchase(); }
   });
 
   // Спрашиваем только после настоящей отлучки. Без флага вопрос выскочил бы
@@ -1380,7 +1662,11 @@
 
   read();
   readBalanceFromLink();
+  readOriginFromLink();
+  prepareFeed();
   render();
   // Вкладку могли закрыть, не ответив: незаданный вопрос ждёт в хранилище.
   askPurchase();
+  // Отметки с сервера — после первой отрисовки: локальный кеш показываем сразу.
+  pull();
 })();

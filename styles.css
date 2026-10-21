@@ -272,6 +272,16 @@ body.is-dark { background: var(--card); }
   letter-spacing: -.01em;
 }
 
+.because {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--violet);
+}
+
+/* На свайпе подпись лежит на тёмной фотографии. */
+.swipecard__over .because { color: var(--lilac); }
+
 .meta { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 13px; }
 .screen--dark .meta, .bigcard .meta { color: var(--on-card-soft); }
 .meta .ic { color: inherit; opacity: .85; }
@@ -864,6 +874,8 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .nav--hidden { display: none; }
 
 .stub { padding: 40px var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; text-align: center; }
+
+.origin-note { margin: 8px 0 0; padding: 0 var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
 
 /* ---- Вход в ленту: счётчик и отказ ------------------------------------- */
 
