@@ -27,9 +27,9 @@
   var SVG = 'http://www.w3.org/2000/svg';
   var XLINK = 'http://www.w3.org/1999/xlink';
 
-  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile'];
+  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile', 'screen-stats'];
   var DARK = { 'screen-swipe': true };
-  var NO_NAV = { 'screen-welcome': true, 'screen-detail': true };
+  var NO_NAV = { 'screen-welcome': true, 'screen-detail': true, 'screen-stats': true };
 
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
@@ -143,6 +143,18 @@
       if (typeof p === 'string' && p) { return p; }
     } catch (e) { /* моста нет — открыто не из MAX */ }
     return params.get('WebAppStartParam') || '';
+  }
+
+  // Параметр кнопки статистики из команды /stats. Пара к Screens.STATS_PAYLOAD;
+  // синхронность проверяет ScreensMiniAppTest.
+  var STATS_PARAM = 'stats';
+
+  function openedForStats() {
+    try {
+      return startParam(new URLSearchParams(location.search)) === STATS_PARAM;
+    } catch (e) {
+      return false;
+    }
   }
 
   function readBalanceFromLink() {
@@ -1496,6 +1508,181 @@
     title: function (code) { return this.titles[code] || 'Событие'; }
   };
 
+  /* ---- Статистика для администраторов -----------------------------------
+   * Экран открывает кнопка из команды /stats. Сервер отдаёт данные только по
+   * подписи initData администратора, остальным — 401/403, и экран объясняет,
+   * откуда его открывать. Опрос идёт цепочкой setTimeout и только пока экран
+   * открыт: медленный ответ не накладывается на следующий запрос. */
+  var STEPS = {
+    VIEW: 'Увидели карточку', LIKE: 'Отметили «Пойду»',
+    CLICK_BUY: 'Перешли к покупке', PURCHASE_YES: 'Подтвердили покупку'
+  };
+  var ACTIONS = {
+    VIEW: 'смотрит карточку', LIKE: '«Пойду»', SAVE: 'отложил', DISLIKE: 'не нравится',
+    UNDO: 'отменил оценку', CLICK_BUY: 'ушёл покупать', PURCHASE_YES: 'купил',
+    PURCHASE_NO: 'ещё не купил', PURCHASE_CANCEL: 'отменил покупку'
+  };
+  var DENIED = 'Статистика доступна только администраторам — откройте через команду /stats в боте.';
+  var CLOCK = new Intl.DateTimeFormat('ru-RU', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Moscow'
+  });
+  // statsOn — идёт ли опрос. statsGen меняется при каждом старте и остановке:
+  // ответ устаревшего опроса не рисуется и не планирует следующий.
+  var statsOn = false;
+  var statsGen = 0;
+  var statsTimer = null;
+
+  function pct(x) { return String(x).replace('.', ',') + ' %'; }
+
+  /* Вызывается последней строкой render(): опрос стартует при входе на экран
+   * и гаснет при уходе с него, без отдельных хуков в go(). */
+  function syncStats() {
+    var open = state.screen === 'screen-stats';
+    if (open && !statsOn) {
+      statsOn = true;
+      statsGen++;
+      pollStats(statsGen);
+    } else if (!open && statsOn) {
+      statsOn = false;
+      statsGen++;
+      clearTimeout(statsTimer);
+    }
+  }
+
+  function statsStatus(text, off) {
+    var s = document.getElementById('stats-status');
+    s.textContent = text;
+    s.classList.toggle('stats-status--off', !!off);
+  }
+
+  function pollStats(gen) {
+    if (gen !== statsGen) { return; }
+    if (!INIT) { statsDenied(); return; }
+    var next = function () {
+      if (gen !== statsGen) { return; }
+      statsTimer = setTimeout(function () { pollStats(gen); }, 3000);
+    };
+    // Последние данные остаются на экране, меняется только статус.
+    var fail = function () {
+      if (gen !== statsGen) { return; }
+      statsStatus('нет связи с сервером', true);
+      next();
+    };
+    try {
+      fetch(API + '/api/stats', { headers: { 'X-Init-Data': INIT }, cache: 'no-store' })
+        .then(function (r) {
+          if (gen !== statsGen) { return; }
+          // Отказ окончательный: подпись за время открытия экрана не изменится.
+          if (r.status === 401 || r.status === 403) { statsDenied(); return; }
+          if (!r.ok) { fail(); return; }
+          return r.json().then(function (s) {
+            if (gen !== statsGen) { return; }
+            if (!s || !Array.isArray(s.funnel) || !Array.isArray(s.likesByCategory) || !Array.isArray(s.recent)) {
+              fail();
+              return;
+            }
+            renderStats(s);
+            statsStatus('обновлено ' + CLOCK.format(new Date()), false);
+            next();
+          });
+        })
+        .catch(fail);
+    } catch (e) { fail(); /* WebView без fetch */ }
+  }
+
+  function statsDenied() {
+    document.getElementById('stats-body').replaceChildren(el('p', 'stub', DENIED));
+    statsStatus('', false);
+  }
+
+  // Полоса — доля от базы; при нулевой базе пустая, больше 100 % не бывает.
+  function statsBar(part, whole) {
+    var track = el('span', 'stats-track');
+    var fill = el('span', 'stats-fill');
+    var w = whole > 0 ? Math.min(100, Math.max(0, part / whole * 100)) : 0;
+    fill.style.width = w + '%';
+    track.appendChild(fill);
+    return track;
+  }
+
+  function statsTile(label, value, note) {
+    var t = el('div', 'stats-tile');
+    t.appendChild(el('div', 'stats-tile__label', label));
+    t.appendChild(el('div', 'stats-tile__value', value));
+    t.appendChild(el('div', 'stats-tile__note', note));
+    return t;
+  }
+
+  function statsLine(name, count, extra) {
+    var line = el('div', 'stats-line');
+    line.appendChild(el('span', 'stats-name', name));
+    line.appendChild(el('span', 'stats-count', count));
+    if (extra !== undefined) { line.appendChild(el('span', 'stats-pct', extra)); }
+    return line;
+  }
+
+  /* Ответ — внешние данные (категории и eventId пишет клиент), поэтому только
+   * textContent. Шапку и переехавший логотип не трогаем — только #stats-body. */
+  function renderStats(s) {
+    var parts = [];
+
+    var tiles = el('div', 'stats-tiles');
+    tiles.appendChild(statsTile('Пользователей', s.users, 'открыли мини-приложение в MAX и что-то сделали'));
+    tiles.appendChild(statsTile('₽ доведено до покупки',
+      Number(s.boughtRub).toLocaleString('ru-RU') + ' ₽', 'билетов: ' + s.boughtCount));
+    parts.push(tiles);
+
+    parts.push(el('h2', 'section-title', 'Воронка'));
+    var funnel = el('div', 'stats-panel');
+    var first = s.funnel.length ? Number(s.funnel[0].count) : 0;
+    s.funnel.forEach(function (f) {
+      var row = el('div', 'stats-step');
+      row.appendChild(statsLine(STEPS[f.step] || f.step, f.count, pct(f.percentOfPrevious)));
+      row.appendChild(statsBar(Number(f.count), first));
+      funnel.appendChild(row);
+    });
+    var overall = el('p', 'stats-overall', 'Сквозная конверсия: ');
+    overall.appendChild(el('b', null, pct(s.overallPercent)));
+    funnel.appendChild(overall);
+    parts.push(funnel);
+
+    parts.push(el('h2', 'section-title', 'Лайки по категориям'));
+    var cats = el('div', 'stats-panel');
+    if (!s.likesByCategory.length) {
+      cats.appendChild(el('p', 'stats-empty', 'Лайков пока нет.'));
+    } else {
+      var top = Math.max.apply(null, s.likesByCategory.map(function (c) { return Number(c.count) || 0; }));
+      s.likesByCategory.forEach(function (c) {
+        var row = el('div', 'stats-cat');
+        row.appendChild(statsLine(Cat.title(c.category), c.count));
+        row.appendChild(statsBar(Number(c.count), top));
+        cats.appendChild(row);
+      });
+    }
+    parts.push(cats);
+
+    parts.push(el('h2', 'section-title', 'Последние действия'));
+    var recent = el('div', 'stats-panel');
+    if (!s.recent.length) {
+      recent.appendChild(el('p', 'stats-empty', 'Действий пока нет — открой мини-приложение в MAX.'));
+    } else {
+      s.recent.forEach(function (a) {
+        var row = el('div', 'stats-row' + (a.action === 'VIEW' ? ' stats-row--view' : ''));
+        var when = new Date(a.at);
+        row.appendChild(el('span', 'stats-row__time', isNaN(when.getTime()) ? '' : CLOCK.format(when)));
+        row.appendChild(el('span', 'badge', ACTIONS[a.action] || a.action));
+        row.appendChild(el('span', 'stats-row__price', a.priceRub + ' ₽'));
+        var item = byEventId(a.eventId);
+        row.appendChild(el('div', 'stats-row__title', item ? item.title : 'Событие #' + a.eventId));
+        recent.appendChild(row);
+      });
+    }
+    parts.push(recent);
+
+    var body = document.getElementById('stats-body');
+    body.replaceChildren.apply(body, parts);
+  }
+
   /* ---- Навигация и отрисовка ------------------------------------------ */
 
   var nav = document.getElementById('bottom-nav');
@@ -1545,6 +1732,7 @@
     renderFavorites();
     renderProfile();
     renderDetail();
+    syncStats();
   }
 
   /* ---- Запуск ---------------------------------------------------------- */
@@ -1569,6 +1757,7 @@
 
   document.getElementById('feed-back').addEventListener('click', undoLast);
   document.getElementById('fav-back').addEventListener('click', function () { go('screen-feed'); });
+  document.getElementById('stats-back').addEventListener('click', function () { go('screen-feed'); });
   document.getElementById('swipe-skip').addEventListener('click', next);
 
   // Главный экран тянется за пальцем, а подборка выглядывает справа и едет
@@ -1664,9 +1853,14 @@
   readBalanceFromLink();
   readOriginFromLink();
   prepareFeed();
+  // Кнопка /stats открывает приложение сразу на статистике, минуя главный экран.
+  var forStats = openedForStats();
+  if (forStats) { state.screen = 'screen-stats'; }
   render();
   // Вкладку могли закрыть, не ответив: незаданный вопрос ждёт в хранилище.
-  askPurchase();
+  // На статистике не спрашиваем: модальное окно закрыло бы доску на защите,
+  // а вопрос останется в хранилище до обычного открытия.
+  if (!forStats) { askPurchase(); }
   // Отметки с сервера — после первой отрисовки: локальный кеш показываем сразу.
   pull();
 })();

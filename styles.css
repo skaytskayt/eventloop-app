@@ -954,3 +954,69 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
   font-size: 12px;
   color: #8d88a4;
 }
+
+/* ---- Статистика для администраторов --------------------------------------
+ * Карточки той же геометрии, что кошельки профиля: экран должен выглядеть
+ * частью приложения, а не отдельной страницей. */
+
+.stats-status { margin: 6px 0 0; padding: 0 var(--gutter); font-size: 13px; color: var(--ink-soft); }
+/* Своего красного токена нет. */
+.stats-status--off { color: #d64545; }
+
+.stats { padding-bottom: 24px; }
+.stats-tiles { display: flex; gap: 10px; padding: 14px var(--gutter) 0; }
+.stats-tile,
+.stats-panel {
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.stats-tile { flex: 1 1 0; min-width: 0; padding: 14px; }
+.stats-tile__label { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.stats-tile__value { margin-top: 6px; font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+.stats-tile__note { margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--ink-soft); }
+
+.stats-panel { margin: 12px var(--gutter) 0; padding: 14px; }
+
+.stats-step + .stats-step,
+.stats-cat + .stats-cat { margin-top: 12px; }
+.stats-line { display: flex; align-items: baseline; gap: 10px; font-size: 14px; }
+.stats-name { flex: 1; min-width: 0; }
+.stats-count { font-weight: 800; }
+.stats-pct { min-width: 52px; text-align: right; font-weight: 700; color: var(--violet); }
+
+.stats-track {
+  display: block;
+  margin-top: 7px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--lilac-soft);
+  overflow: hidden;
+}
+.stats-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--violet);
+  transition: width .3s ease;
+}
+
+.stats-overall { margin: 14px 0 0; font-size: 14px; }
+.stats-overall b { font-size: 20px; font-weight: 800; color: var(--violet); }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.stats-row:first-child { padding-top: 0; }
+.stats-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.stats-row--view { opacity: .55; }
+.stats-row__time { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.stats-row__price { justify-self: end; font-size: 13px; font-weight: 700; }
+.stats-row__title { grid-column: 1 / -1; font-size: 14px; line-height: 1.35; }
+
+.stats-empty { margin: 0; font-size: 14px; color: var(--ink-soft); }
