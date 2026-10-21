@@ -1522,7 +1522,8 @@
     UNDO: 'отменил оценку', CLICK_BUY: 'ушёл покупать', PURCHASE_YES: 'купил',
     PURCHASE_NO: 'ещё не купил', PURCHASE_CANCEL: 'отменил покупку'
   };
-  var DENIED = 'Статистика доступна только администраторам — откройте через команду /stats в боте.';
+  // Ни роли, ни команды не называем: чужому о них знать незачем.
+  var DENIED = 'Экран недоступен.';
   var CLOCK = new Intl.DateTimeFormat('ru-RU', {
     hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Moscow'
   });
