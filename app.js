@@ -444,7 +444,19 @@
   function becauseLine(item) {
     var t = taste(item);
     if (t.score <= 0 || !t.because) { return null; }
-    return el('p', 'because', 'Потому что тебе понравилось «' + t.because.title + '»');
+    return el('p', 'because', reason(item, t.because));
+  }
+
+  /* Подпись называет, чем именно похоже: «понравилось» звучало натянуто —
+   * человек отметил «Пойду», а не рассказал, что ему нравится. Площадка
+   * важнее категории: «там же» конкретнее, чем «тоже театр». */
+  var ALSO = { THEATRE: 'Тоже театр', CINEMA: 'Тоже кино', MUSEUM: 'Тоже выставка', CONCERT: 'Тоже концерт', EXCURSION: 'Тоже экскурсия' };
+
+  function reason(item, ref) {
+    var name = ref.title.length > 40 ? ref.title.slice(0, 39).trim() + '…' : ref.title;
+    if (item.venueName === ref.venueName) { return 'Там же, где «' + name + '»'; }
+    if (item.category === ref.category && ALSO[item.category]) { return ALSO[item.category] + ', как «' + name + '»'; }
+    return 'Похоже на «' + name + '»';
   }
 
   function fits(e) {
