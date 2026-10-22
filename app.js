@@ -1129,7 +1129,15 @@
           save();
           send('CLICK_BUY', item.eventId);
         });
-        main.appendChild(buy);
+        // Маршрут рядом с покупкой: решив пойти, человек сразу смотрит, как доехать.
+        var route = routeButton(item);
+        route.className = 'btn btn--ghost';
+        // Вдвоём в узкой колонке «Купить билет» не помещается; цена уже над кнопкой.
+        buy.textContent = 'Купить';
+        var btns = el('div', 'row__btns');
+        btns.appendChild(buy);
+        btns.appendChild(route);
+        main.appendChild(btns);
       }
       row.appendChild(main);
 
