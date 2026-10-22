@@ -589,7 +589,24 @@ body.is-dark { background: var(--card); }
 .welcome__arrow { width: 24px; height: 24px; animation: welcome-nudge 1.6s ease-in-out infinite; }
 .welcome__cta { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--violet); }
 @keyframes welcome-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
-@media (prefers-reduced-motion: reduce) { .welcome__arrow { animation: none; } }
+
+/* Появление главного экрана: Пушкин, заголовок, подзаголовок и подсказка
+ * всплывают по очереди — экран собирается, а не вспыхивает целиком. */
+.welcome__art, .welcome__title, .welcome__sub, .welcome__hint, .welcome__cta {
+  animation: welcome-in .7s cubic-bezier(.2, .7, .2, 1) both;
+}
+.welcome__art { animation-name: welcome-art-in; animation-duration: .9s; }
+.welcome__title { animation-delay: .15s; }
+.welcome__sub { animation-delay: .27s; }
+.welcome__hint { animation-delay: .42s; }
+.welcome__cta { animation-delay: .5s; }
+@keyframes welcome-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes welcome-art-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome__arrow,
+  .welcome__art, .welcome__title, .welcome__sub, .welcome__hint, .welcome__cta { animation: none; }
+}
 
 .done { margin: auto 0; padding: 8px var(--gutter) 24px; text-align: center; }
 .done__art { display: block; width: 100%; max-width: 320px; margin: 0 auto; }
