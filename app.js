@@ -502,7 +502,7 @@
       fetch(API + '/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Init-Data': INIT },
-        body: JSON.stringify({ eventId: item.eventId, action: action, priceRub: item.priceRub, category: item.category }),
+        body: JSON.stringify({ eventId: item.eventId, action: action, priceRub: item.priceRub, category: item.category, city: item.city }),
         // «Купить билет» уводит на сайт кассы — запрос должен это пережить.
         keepalive: true
       }).catch(function () { /* сеть — не повод мешать свайпу */ });
@@ -1514,14 +1514,12 @@
    * откуда его открывать. Опрос идёт цепочкой setTimeout и только пока экран
    * открыт: медленный ответ не накладывается на следующий запрос. */
   var STEPS = {
-    VIEW: 'Увидели карточку', LIKE: 'Отметили «Пойду»',
-    CLICK_BUY: 'Перешли к покупке', PURCHASE_YES: 'Подтвердили покупку'
+    OPENED: 'Открыли приложение', LIKED: 'Отметили «Пойду»',
+    CLICK_BUY: 'Перешли к покупке', BOUGHT: 'Купили билет'
   };
-  var ACTIONS = {
-    VIEW: 'смотрит карточку', LIKE: '«Пойду»', SAVE: 'отложил', DISLIKE: 'не нравится',
-    UNDO: 'отменил оценку', CLICK_BUY: 'ушёл покупать', PURCHASE_YES: 'купил',
-    PURCHASE_NO: 'ещё не купил', PURCHASE_CANCEL: 'отменил покупку'
-  };
+  var CITY_NAMES = { moscow: 'Москва', kazan: 'Казань' };
+  // Пустой знаменатель приходит с сервера как null — вместо 0 % и NaN пишем это.
+  var NO_DATA = 'пока нет данных';
   // Ни роли, ни команды не называем: чужому о них знать незачем.
   var DENIED = 'Экран недоступен.';
   var CLOCK = new Intl.DateTimeFormat('ru-RU', {
@@ -1533,7 +1531,24 @@
   var statsGen = 0;
   var statsTimer = null;
 
-  function pct(x) { return String(x).replace('.', ',') + ' %'; }
+  /* Форматтеры получают только конечные числа: всё прочее отсекает known(). */
+  function known(x) { return x != null && Number.isFinite(x); }
+  function count(x) { return known(x) ? x : 0; }
+  function fmtNum(x) { return x.toLocaleString('ru-RU', { maximumFractionDigits: 1 }); }
+  function fmtRub(x) { return fmtNum(x) + ' ₽'; }
+  function fmtPct(x) { return fmtNum(x) + ' %'; }
+  function fmtMinutes(m) {
+    if (m < 1) { return 'меньше минуты'; }
+    if (m < 60) { return Math.floor(m) + ' мин'; }
+    if (m < 1440) {
+      var h = Math.floor(m / 60);
+      var min = Math.floor(m - h * 60);
+      return h + ' ч' + (min ? ' ' + min + ' мин' : '');
+    }
+    var d = Math.floor(m / 1440);
+    var hh = Math.floor((m - d * 1440) / 60);
+    return d + ' дн' + (hh ? ' ' + hh + ' ч' : '');
+  }
 
   /* Вызывается последней строкой render(): опрос стартует при входе на экран
    * и гаснет при уходе с него, без отдельных хуков в go(). */
@@ -1554,6 +1569,15 @@
     var s = document.getElementById('stats-status');
     s.textContent = text;
     s.classList.toggle('stats-status--off', !!off);
+  }
+
+  function isObj(x) { return !!x && typeof x === 'object'; }
+
+  function statsShape(s) {
+    return isObj(s) && isObj(s.swipesToLike) && isObj(s.bought) && isObj(s.likeToBuy) &&
+      isObj(s.active) && isObj(s.minutesToPurchase) && isObj(s.returned) &&
+      Array.isArray(s.funnel) && Array.isArray(s.topEvents) &&
+      Array.isArray(s.categories) && Array.isArray(s.cities);
   }
 
   function pollStats(gen) {
@@ -1578,7 +1602,7 @@
           if (!r.ok) { fail(); return; }
           return r.json().then(function (s) {
             if (gen !== statsGen) { return; }
-            if (!s || !Array.isArray(s.funnel) || !Array.isArray(s.likesByCategory) || !Array.isArray(s.recent)) {
+            if (!statsShape(s)) {
               fail();
               return;
             }
@@ -1614,72 +1638,162 @@
     return t;
   }
 
-  function statsLine(name, count, extra) {
+  function statsLine(name, value, extra) {
     var line = el('div', 'stats-line');
     line.appendChild(el('span', 'stats-name', name));
-    line.appendChild(el('span', 'stats-count', count));
+    line.appendChild(el('span', 'stats-count', value));
     if (extra !== undefined) { line.appendChild(el('span', 'stats-pct', extra)); }
     return line;
+  }
+
+  function statsSection(parts, title, hint) {
+    parts.push(el('h2', 'section-title', title));
+    if (hint) { parts.push(el('p', 'stats-hint', hint)); }
+    var panel = el('div', 'stats-panel');
+    parts.push(panel);
+    return panel;
+  }
+
+  function statsEmpty(panel) {
+    panel.appendChild(el('p', 'stats-empty', NO_DATA));
+  }
+
+  // Строка «название + пояснение слева, значение справа».
+  function statsMetric(name, hint, value) {
+    var row = el('div', 'stats-metric');
+    var text = el('div', 'stats-metric__text');
+    text.appendChild(el('div', 'stats-metric__name', name));
+    text.appendChild(el('div', 'stats-metric__hint', hint));
+    row.appendChild(text);
+    row.appendChild(el('div', 'stats-metric__value' + (value === NO_DATA ? ' stats-metric__value--none' : ''), value));
+    return row;
+  }
+
+  function statsKpi(s) {
+    var tiles = el('div', 'stats-tiles');
+
+    var swipes = s.swipesToLike.value;
+    tiles.appendChild(known(swipes)
+      ? statsTile('Свайпов до выбора', fmtNum(swipes),
+        'карточек до первого «Пойду» · медиана по ' + count(s.swipesToLike.users) + ' чел.')
+      : statsTile('Свайпов до выбора', '—', NO_DATA));
+
+    var b = s.bought;
+    tiles.appendChild(count(b.count) > 0
+      ? statsTile('₽ доведено до покупки', fmtRub(count(b.rub)),
+        (known(b.avgCheckRub) ? 'средний чек ' + fmtRub(b.avgCheckRub) + ' · ' : '') + 'билетов: ' + b.count)
+      : statsTile('₽ доведено до покупки', '0 ₽', 'покупок пока нет'));
+
+    var l = s.likeToBuy;
+    tiles.appendChild(known(l.percent)
+      ? statsTile('Из «Пойду» в покупку', fmtPct(l.percent),
+        count(l.part) + ' из ' + count(l.whole) + ' отмеченных купили')
+      : statsTile('Из «Пойду» в покупку', '—', NO_DATA));
+
+    var a = s.active;
+    tiles.appendChild(count(a.week) > 0
+      ? statsTile('Активны', count(a.today) + ' / ' + a.week,
+        'сегодня / за 7 дней · новых сегодня: ' + count(a.newToday))
+      : statsTile('Активны', '—', NO_DATA));
+
+    return tiles;
+  }
+
+  function statsFunnel(parts, s) {
+    var panel = statsSection(parts, 'Воронка по людям', 'сколько людей дошли до шага; % — от открывших');
+    var first = s.funnel.length ? count(s.funnel[0].users) : 0;
+    if (first === 0) { statsEmpty(panel); return; }
+    s.funnel.forEach(function (f) {
+      var users = count(f.users);
+      var row = el('div', 'stats-step');
+      row.appendChild(statsLine(STEPS[f.step] || String(f.step), fmtNum(users),
+        known(f.percentOfFirst) ? fmtPct(f.percentOfFirst) : '—'));
+      row.appendChild(statsBar(users, first));
+      panel.appendChild(row);
+    });
+  }
+
+  function statsEngagement(parts, s) {
+    var panel = statsSection(parts, 'Вовлечённость');
+    var minutes = s.minutesToPurchase.value;
+    panel.appendChild(statsMetric('Время до покупки', 'медиана: от первого действия до первой покупки',
+      known(minutes) ? fmtMinutes(minutes) : NO_DATA));
+    var r = s.returned;
+    panel.appendChild(statsMetric('Вернулись',
+      'заходили в 2+ разных дня по МСК' + (count(r.whole) > 0 ? ' · ' + count(r.part) + ' из ' + r.whole : ''),
+      known(r.percent) ? fmtPct(r.percent) : NO_DATA));
+    panel.appendChild(statsMetric('Карточек на человека', 'в среднем просмотров карточек',
+      known(s.cardsPerUser) ? fmtNum(s.cardsPerUser) : NO_DATA));
+  }
+
+  function statsTop(parts, s) {
+    var panel = statsSection(parts, 'Топ-5 мероприятий', '«Пойду» плюс двойной вес покупок');
+    if (!s.topEvents.length) { statsEmpty(panel); return; }
+    s.topEvents.forEach(function (t, i) {
+      var row = el('div', 'stats-top');
+      row.appendChild(el('span', 'stats-top__place', i + 1));
+      var text = el('div', 'stats-top__text');
+      var item = byEventId(t.eventId);
+      text.appendChild(el('div', 'stats-top__title', item ? item.title : 'Событие #' + t.eventId));
+      text.appendChild(el('div', 'stats-top__meta',
+        '«Пойду»: ' + count(t.likes) + ' · куплено: ' + count(t.purchases)));
+      row.appendChild(text);
+      panel.appendChild(row);
+    });
+  }
+
+  function statsCategories(parts, s) {
+    var panel = statsSection(parts, 'Категории', 'полоса — доля «Пойду» среди оценок');
+    if (!s.categories.length) { statsEmpty(panel); return; }
+    s.categories.forEach(function (c) {
+      var likes = count(c.likes);
+      var dislikes = count(c.dislikes);
+      var row = el('div', 'stats-cat');
+      var line = el('div', 'stats-line');
+      line.appendChild(el('span', 'stats-name', Cat.title(c.category)));
+      // Процент тот же, что рисует полоса, — иначе полоса и число спорят.
+      line.appendChild(el('span', 'stats-pct',
+        known(c.dislikePercent) ? fmtPct(100 - c.dislikePercent) + ' «Пойду»' : '—'));
+      row.appendChild(line);
+      row.appendChild(el('div', 'stats-meta', likes + ' «Пойду» · ' + dislikes + ' не нравится'));
+      row.appendChild(statsBar(likes, likes + dislikes));
+      panel.appendChild(row);
+    });
+  }
+
+  function statsCities(parts, s) {
+    var panel = statsSection(parts, 'Города');
+    var total = s.cities.reduce(function (sum, c) { return sum + count(c && c.users); }, 0);
+    if (total === 0) { statsEmpty(panel); return; }
+    var cols = s.cities.filter(function (c) {
+      return c && (c.city === 'moscow' || c.city === 'kazan' || c.city == null);
+    });
+    var grid = el('div', 'stats-cities');
+    grid.style.gridTemplateColumns = 'minmax(0, 1.2fr) repeat(' + cols.length + ', minmax(0, 1fr))';
+    grid.appendChild(el('span', 'stats-cities__head'));
+    cols.forEach(function (c) {
+      grid.appendChild(el('span', 'stats-cities__head stats-cities__num',
+        c.city == null ? 'Не указан' : CITY_NAMES[c.city]));
+    });
+    [['Пользователи', 'users'], ['«Пойду»', 'likes'], ['Покупки', 'purchases'], ['₽', 'rub']]
+      .forEach(function (r) {
+        grid.appendChild(el('span', 'stats-cities__label', r[0]));
+        cols.forEach(function (c) {
+          grid.appendChild(el('span', 'stats-cities__num', fmtNum(count(c[r[1]]))));
+        });
+      });
+    panel.appendChild(grid);
   }
 
   /* Ответ — внешние данные (категории и eventId пишет клиент), поэтому только
    * textContent. Шапку и переехавший логотип не трогаем — только #stats-body. */
   function renderStats(s) {
-    var parts = [];
-
-    var tiles = el('div', 'stats-tiles');
-    tiles.appendChild(statsTile('Пользователей', s.users, 'открыли мини-приложение в MAX и что-то сделали'));
-    tiles.appendChild(statsTile('₽ доведено до покупки',
-      Number(s.boughtRub).toLocaleString('ru-RU') + ' ₽', 'билетов: ' + s.boughtCount));
-    parts.push(tiles);
-
-    parts.push(el('h2', 'section-title', 'Воронка'));
-    var funnel = el('div', 'stats-panel');
-    var first = s.funnel.length ? Number(s.funnel[0].count) : 0;
-    s.funnel.forEach(function (f) {
-      var row = el('div', 'stats-step');
-      row.appendChild(statsLine(STEPS[f.step] || f.step, f.count, pct(f.percentOfPrevious)));
-      row.appendChild(statsBar(Number(f.count), first));
-      funnel.appendChild(row);
-    });
-    var overall = el('p', 'stats-overall', 'Сквозная конверсия: ');
-    overall.appendChild(el('b', null, pct(s.overallPercent)));
-    funnel.appendChild(overall);
-    parts.push(funnel);
-
-    parts.push(el('h2', 'section-title', 'Лайки по категориям'));
-    var cats = el('div', 'stats-panel');
-    if (!s.likesByCategory.length) {
-      cats.appendChild(el('p', 'stats-empty', 'Лайков пока нет.'));
-    } else {
-      var top = Math.max.apply(null, s.likesByCategory.map(function (c) { return Number(c.count) || 0; }));
-      s.likesByCategory.forEach(function (c) {
-        var row = el('div', 'stats-cat');
-        row.appendChild(statsLine(Cat.title(c.category), c.count));
-        row.appendChild(statsBar(Number(c.count), top));
-        cats.appendChild(row);
-      });
-    }
-    parts.push(cats);
-
-    parts.push(el('h2', 'section-title', 'Последние действия'));
-    var recent = el('div', 'stats-panel');
-    if (!s.recent.length) {
-      recent.appendChild(el('p', 'stats-empty', 'Действий пока нет — открой мини-приложение в MAX.'));
-    } else {
-      s.recent.forEach(function (a) {
-        var row = el('div', 'stats-row' + (a.action === 'VIEW' ? ' stats-row--view' : ''));
-        var when = new Date(a.at);
-        row.appendChild(el('span', 'stats-row__time', isNaN(when.getTime()) ? '' : CLOCK.format(when)));
-        row.appendChild(el('span', 'badge', ACTIONS[a.action] || a.action));
-        row.appendChild(el('span', 'stats-row__price', a.priceRub + ' ₽'));
-        var item = byEventId(a.eventId);
-        row.appendChild(el('div', 'stats-row__title', item ? item.title : 'Событие #' + a.eventId));
-        recent.appendChild(row);
-      });
-    }
-    parts.push(recent);
-
+    var parts = [statsKpi(s)];
+    statsFunnel(parts, s);
+    statsEngagement(parts, s);
+    statsTop(parts, s);
+    statsCategories(parts, s);
+    statsCities(parts, s);
     var body = document.getElementById('stats-body');
     body.replaceChildren.apply(body, parts);
   }
