@@ -409,10 +409,11 @@ body.is-dark { background: var(--card); }
 .row__heart--off { color: #c7c2d8; }
 .row__drop { position: absolute; right: 13px; top: 46px; border: 0; background: none; padding: 0; cursor: pointer; color: #b3aec6; }
 .row .btn--buy { margin-top: 10px; width: 100%; }
-.row__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.row__btns .btn { flex: 1 1 auto; width: auto; min-width: max-content; height: 40px; margin-top: 0; padding: 0 8px; gap: 5px; font-size: 13px; }
+.row__btns { display: flex; gap: 6px; margin-top: 10px; }
+.row__btns .btn { flex: 1 1 auto; width: auto; min-width: 0; height: 40px; margin-top: 0; padding: 0 8px; gap: 5px; font-size: 13px; }
 .row__btns .btn .ic { width: 16px; height: 16px; }
-/* На узком экране две кнопки не влезают в строку — маршрут уходит под покупку. */
+/* Купить и маршрут всегда в одну строку; на узком экране маршрут теряет иконку. */
+@media (max-width: 380px) { .row__btns .btn { padding: 0 6px; } .row__btns .btn--ghost .ic { display: none; } }
 .row__btns .btn--ghost .ic { color: var(--violet); }
 .row__left { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--violet); }
 
