@@ -203,6 +203,19 @@
     </div>
   </div>
 
+  <div class="ask" id="unlike" hidden>
+    <div class="ask__box" role="dialog" aria-modal="true" aria-labelledby="unlike-title">
+      <h2 class="ask__title" id="unlike-title">Точно убрать из «Пойду»?</h2>
+      <p class="ask__event" id="unlike-event"></p>
+      <p class="ask__note">В подборку оно уже не вернётся — найти его потом будет непросто.</p>
+      <button class="btn btn--buy ask__main" id="unlike-keep" type="button">Оставить</button>
+      <div class="ask__row ask__row--tight">
+        <button class="btn btn--ghost" id="unlike-save" type="button">Отложить</button>
+        <button class="btn btn--ghost ask__danger" id="unlike-drop" type="button">Удалить</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="nav" id="bottom-nav">
     <button class="nav__item" data-nav="screen-feed" type="button">
       <svg class="ic ic--22"><use href="#icon-home"></use></svg><span>Подборка</span>

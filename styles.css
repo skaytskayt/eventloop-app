@@ -854,6 +854,10 @@ body.is-dark { background: var(--card); }
 .ask__note { margin: 6px 0 0; font-size: 13px; color: var(--ink-soft); }
 .ask__row { display: flex; gap: 10px; margin-top: 18px; }
 .ask__row .btn { flex: 1 1 0; height: 46px; font-size: 15px; }
+/* Подтверждение «убрать из Пойду»: оставить — главное и яркое, остальное ниже. */
+.ask__main { display: flex; width: 100%; height: 46px; margin-top: 18px; font-size: 15px; }
+.ask__row--tight { margin-top: 10px; }
+.ask__danger { color: #c0392b; box-shadow: inset 0 0 0 1.5px #f1c4bf; }
 
 @keyframes ask-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ask-up { from { transform: translateY(18px); } to { transform: translateY(0); } }

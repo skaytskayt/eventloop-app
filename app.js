@@ -1232,28 +1232,39 @@
         e.stopPropagation();
         if (heart.classList.contains('is-liking') || heart.classList.contains('is-unliking')) { return; }
         if (liked) {
-          heart.classList.add('row__heart--off', 'is-unliking');
-          heart.replaceChildren(icon('heart', 20));
-        } else {
-          heart.classList.remove('row__heart--off');
-          heart.classList.add('is-liking');
-          heart.replaceChildren(icon('heart-fill', 20));
+          // Случайное касание стирало событие насовсем: из подборки оно уже
+          // ушло, и найти его снова было негде. Поэтому сначала спрашиваем.
+          askUnlike(item, function (choice) {
+            heart.classList.add('row__heart--off', 'is-unliking');
+            heart.replaceChildren(icon('heart', 20));
+            row.classList.add('is-leaving');
+            setTimeout(function () {
+              if (choice === 'saved') {
+                mark(item, 'saved');
+                send('SAVE', item.eventId);
+              } else {
+                forget(item.eventId);
+                send('UNDO', item.eventId);
+              }
+              render();
+              toast(choice === 'saved' ? 'Перенесли в «Отложенные»' : 'Убрали из избранного');
+            }, 440);
+          });
+          return;
         }
+        heart.classList.remove('row__heart--off');
+        heart.classList.add('is-liking');
+        heart.replaceChildren(icon('heart-fill', 20));
         row.classList.add('is-leaving');
         setTimeout(function () {
-          if (liked) {
-            forget(item.eventId);
-            send('UNDO', item.eventId);
-          } else {
-            mark(item, 'liked');
-            send('LIKE', item.eventId);
-          }
+          mark(item, 'liked');
+          send('LIKE', item.eventId);
           render();
           // Карточка уезжает с текущей вкладки, а появляется на соседней,
           // и переключать вкладку под человеком во время разбора списка
           // незачем. Без этой подсказки нажатие выглядит так, будто
           // событие просто пропало.
-          toast(liked ? 'Убрали из избранного' : 'Перенесли в «Пойду»');
+          toast('Перенесли в «Пойду»');
         }, 440);
       });
       row.appendChild(heart);
@@ -1454,6 +1465,25 @@
     var box = document.getElementById('ask');
     box.hidden = false;
     document.getElementById('ask-yes').focus();
+  }
+
+  /* ---- Подтверждение «убрать из Пойду» --------------------------------
+   * Главная кнопка — «Оставить»: случайное касание сердца не должно стоить
+   * события. Нажатие мимо окна и Esc — тоже «оставить». */
+  var unlikeDone = null;
+
+  function askUnlike(item, done) {
+    unlikeDone = done;
+    document.getElementById('unlike-event').textContent = item.title + ' · ' + item.venueName;
+    document.getElementById('unlike').hidden = false;
+    document.getElementById('unlike-keep').focus();
+  }
+
+  function closeUnlike(choice) {
+    var done = unlikeDone;
+    unlikeDone = null;
+    document.getElementById('unlike').hidden = true;
+    if (done && choice !== 'keep') { done(choice); }
   }
 
   function closeAsk() {
@@ -2104,6 +2134,13 @@
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !document.getElementById('ask').hidden) { declinePurchase(); }
+    if (e.key === 'Escape' && !document.getElementById('unlike').hidden) { closeUnlike('keep'); }
+  });
+  document.getElementById('unlike-keep').addEventListener('click', function () { closeUnlike('keep'); });
+  document.getElementById('unlike-save').addEventListener('click', function () { closeUnlike('saved'); });
+  document.getElementById('unlike-drop').addEventListener('click', function () { closeUnlike('remove'); });
+  document.getElementById('unlike').addEventListener('click', function (e) {
+    if (e.target === e.currentTarget) { closeUnlike('keep'); }
   });
 
   // Спрашиваем только после настоящей отлучки. Без флага вопрос выскочил бы
