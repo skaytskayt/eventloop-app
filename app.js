@@ -34,7 +34,7 @@
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
   // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null, origin: null };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -85,7 +85,7 @@
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
         spentBase: state.spentBase, undo: state.undo,
-        cats: state.cats, date: state.date, km: state.km, origin: state.origin
+        cats: state.cats, date: state.date, km: state.km, origin: state.origin, originName: state.originName
       })); } catch (e) { /* приватный режим */ }
   }
 
@@ -111,6 +111,7 @@
       if (v && KMS.indexOf(v.km) >= 0) { state.km = v.km; }
       if (v && v.origin && validOrigin(v.origin.lat, v.origin.lon)) {
         state.origin = { lat: v.origin.lat, lon: v.origin.lon };
+        if (typeof v.originName === 'string') { state.originName = v.originName.slice(0, 128); }
       }
     } catch (e) { /* пустое хранилище — не ошибка */ }
   }
@@ -182,6 +183,79 @@
     } catch (e) { /* WebView без fetch */ }
   }
 
+  /* ---- Смена точки в профиле -------------------------------------------
+   * То же, что /address в боте: сервер ищет адрес (или берёт координаты
+   * телефона) и сохраняет точку, так что и следующая кнопка бота понесёт её. */
+
+  var ORIGIN_ERRORS = {
+    404: 'Не нашёл такой адрес в Москве или Казани. Попробуй точнее — улица и дом.',
+    409: 'Сначала пройди анкету в боте.'
+  };
+
+  function originMsg(text, isError) {
+    var m = document.getElementById('origin-msg');
+    m.textContent = text;
+    m.classList.toggle('is-error', !!isError);
+  }
+
+  function originBusy(on) {
+    document.getElementById('origin-find').disabled = on;
+    document.getElementById('origin-geo').disabled = on;
+  }
+
+  function saveOrigin(body) {
+    originBusy(true);
+    originMsg('Ищу…', false);
+    fetch(API + '/api/me/origin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Init-Data': INIT },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) {
+        if (!r.ok) { throw new Error(ORIGIN_ERRORS[r.status] || 'Не получилось сменить адрес. Попробуй ещё раз.'); }
+        return r.json();
+      })
+      .then(function (p) {
+        if (!p || !validOrigin(p.lat, p.lon)) { throw new Error('Не получилось сменить адрес. Попробуй ещё раз.'); }
+        state.origin = { lat: p.lat, lon: p.lon };
+        state.originName = typeof p.name === 'string' ? p.name.slice(0, 128) : null;
+        state.index = 0;
+        save();
+        // Город и расстояния зависят от точки — пересчитываем подборку.
+        prepareFeed();
+        document.getElementById('origin-input').value = '';
+        originMsg('', false);
+        render();
+        toast('Считаю расстояние от: ' + originLabel());
+      })
+      .catch(function (e) {
+        originMsg(e && e.message && /[а-я]/i.test(e.message) ? e.message : 'Нет связи. Попробуй ещё раз.', true);
+      })
+      .then(function () { originBusy(false); });
+  }
+
+  function onOriginSubmit(e) {
+    e.preventDefault();
+    var text = document.getElementById('origin-input').value.trim();
+    if (!text) { originMsg('Напиши адрес — например, «Казань, Баумана 10».', true); return; }
+    saveOrigin({ address: text });
+  }
+
+  function onOriginGeo() {
+    if (!navigator.geolocation) {
+      originMsg('Телефон не отдаёт геолокацию. Отправь её в боте: /address.', true);
+      return;
+    }
+    originBusy(true);
+    originMsg('Определяю, где ты…', false);
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      saveOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+    }, function () {
+      originBusy(false);
+      originMsg('Не получилось узнать геолокацию. Разреши доступ или отправь её в боте: /address.', true);
+    }, { timeout: 10000, maximumAge: 60000 });
+  }
+
   // Внутри MAX ссылку на бота открывает мост, иначе — обычный переход.
   function openBot(e) {
     var url = e.currentTarget.href;
@@ -228,6 +302,8 @@
     }
     var m = /^\d+_\d+(?:_(-?\d{1,7})_(-?\d{1,7}))?$/.exec(startParam(params));
     if (!m) { return; }
+    // Названия точки ссылка не несёт — прежнее имя к новой точке не подходит.
+    state.originName = null;
     if (m[1] === undefined) {
       state.origin = null;
     } else {
@@ -282,6 +358,8 @@
 
   function originLabel() {
     if (!state.origin) { return 'Москва · центр'; }
+    // Имя есть, когда точку сменили в профиле: сервер вернул найденный адрес.
+    if (state.originName) { return state.originName; }
     // Названия точки payload не несёт: только координаты, по ним — город.
     return CITIES[cityCode()].title + ' · по вашей точке';
   }
@@ -1194,7 +1272,10 @@
       ? 'Осталось после ' + count + ' ' + Fmt.plural(count, 'покупки', 'покупок', 'покупок')
       : 'Баланс карты';
     document.getElementById('profile-origin').textContent =
-      originLabel() + ' — от этой точки считается расстояние. Сменить можно в боте.';
+      originLabel() + ' — от этой точки считается расстояние.'
+      + (INIT ? '' : ' Сменить можно в боте: /address.');
+    // Без подписи MAX сервер не узнает, чью точку менять.
+    document.getElementById('origin-edit').hidden = !INIT;
 
     renderWallets();
     renderBought();
@@ -2033,6 +2114,8 @@
   if (forStats) { state.screen = 'screen-stats'; }
   if (unregistered) { state.screen = 'screen-register'; }
   document.getElementById('register-bot').addEventListener('click', openBot);
+  document.getElementById('origin-edit').addEventListener('submit', onOriginSubmit);
+  document.getElementById('origin-geo').addEventListener('click', onOriginGeo);
   render();
   // Вкладку могли закрыть, не ответив: незаданный вопрос ждёт в хранилище.
   // На статистике не спрашиваем: модальное окно закрыло бы доску на защите,

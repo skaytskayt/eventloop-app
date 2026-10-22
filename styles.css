@@ -906,6 +906,23 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 
 .origin-note { margin: 8px 0 0; padding: 0 var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
 
+/* Смена точки прямо в профиле — то же, что /address в боте. */
+.origin-edit { margin: 12px var(--gutter) 0; display: flex; flex-direction: column; gap: 8px; }
+.origin-edit[hidden] { display: none; }
+.origin-edit__input {
+  height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-btn);
+  background: #fff; box-shadow: inset 0 0 0 1.5px var(--lilac);
+  font: inherit; font-size: 14px; color: var(--ink);
+}
+.origin-edit__input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--violet); }
+.origin-edit__btns { display: flex; gap: 8px; }
+.origin-edit__btns .btn { height: 40px; font-size: 13px; }
+.origin-edit__btns .btn--ghost { flex: 0 0 auto; padding: 0 12px; gap: 5px; }
+.origin-edit__btns .btn--ghost .ic { color: var(--violet); }
+.origin-edit__btns .btn:disabled { opacity: .55; cursor: default; }
+.origin-edit__msg { margin: 0; min-height: 1em; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.origin-edit__msg.is-error { color: #c0392b; }
+
 /* ---- Вход в ленту: счётчик и отказ ------------------------------------- */
 
 .deck-head { display: flex; align-items: center; gap: 12px; padding: 12px var(--gutter) 0; }

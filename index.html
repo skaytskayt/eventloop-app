@@ -154,6 +154,17 @@
       <div class="wallets" id="wallets"></div>
       <h2 class="section-title">Откуда считаем расстояние</h2>
       <p class="origin-note" id="profile-origin"></p>
+      <form class="origin-edit" id="origin-edit" hidden>
+        <input class="origin-edit__input" id="origin-input" type="text" maxlength="200" autocomplete="street-address"
+               placeholder="Новый адрес, например «Казань, Баумана 10»" aria-label="Новый адрес">
+        <div class="origin-edit__btns">
+          <button class="btn btn--primary" id="origin-find" type="submit">Сменить адрес</button>
+          <button class="btn btn--ghost" id="origin-geo" type="button">
+            <svg class="ic ic--16"><use href="#icon-pin"></use></svg><span>Геолокация</span>
+          </button>
+        </div>
+        <p class="origin-edit__msg" id="origin-msg" aria-live="polite"></p>
+      </form>
       <h2 class="section-title">Куплено</h2>
       <div id="bought-list" class="fav-list"></div>
     </div>
