@@ -323,6 +323,7 @@ body.is-dark { background: var(--card); }
 .btn--ghost { background: transparent; color: var(--violet); box-shadow: inset 0 0 0 1.5px var(--lilac); }
 .btn--primary { background: var(--violet); color: #fff; }
 .btn--primary .ic { color: #fff; }
+.btn--route { display: flex; width: 100%; margin-top: 10px; }
 .ic--flip { transform: scaleX(-1); }
 
 /* ---- Экран свайпа ------------------------------------------------------- */
@@ -874,6 +875,12 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .nav--hidden { display: none; }
 
 .stub { padding: 40px var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; text-align: center; }
+
+/* Не прошёл анкету в боте: без баланса и точки подборка была бы чужой. */
+.register { min-height: 100%; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 40px var(--gutter); text-align: center; }
+.register__title { margin: 0; font-size: 24px; font-weight: 800; line-height: 1.2; }
+.register__text { margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.5; }
+.register__btn { flex: 0 0 auto; align-self: center; width: 100%; max-width: 320px; text-decoration: none; }
 
 .origin-note { margin: 8px 0 0; padding: 0 var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
 

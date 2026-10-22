@@ -27,9 +27,9 @@
   var SVG = 'http://www.w3.org/2000/svg';
   var XLINK = 'http://www.w3.org/1999/xlink';
 
-  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile', 'screen-stats'];
+  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile', 'screen-stats', 'screen-register'];
   var DARK = { 'screen-swipe': true };
-  var NO_NAV = { 'screen-welcome': true, 'screen-detail': true, 'screen-stats': true };
+  var NO_NAV = { 'screen-welcome': true, 'screen-detail': true, 'screen-stats': true, 'screen-register': true };
 
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
@@ -155,6 +155,42 @@
     } catch (e) {
       return false;
     }
+  }
+
+  // Кнопка бота после анкеты кладёт в параметр суммы — значит, анкета пройдена.
+  function openedFromBot() {
+    try {
+      return /^\d+_\d+/.test(startParam(new URLSearchParams(location.search)));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* Без анкеты в боте у приложения нет ни баланса, ни точки, и подборка была
+   * бы чужой. Открыли не кнопкой бота — спрашиваем сервер, прошёл ли человек
+   * анкету. Сеть или сервер подвели — не запираем: лучше подборка по умолчанию,
+   * чем пустой экран. */
+  function checkRegistered() {
+    if (!INIT) { return; }
+    try {
+      fetch(API + '/api/me', { headers: { 'X-Init-Data': INIT } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (me) {
+          if (me && me.registered === false) { closeAsk(); go('screen-register'); }
+        })
+        .catch(function () { /* нет связи — пускаем как есть */ });
+    } catch (e) { /* WebView без fetch */ }
+  }
+
+  // Внутри MAX ссылку на бота открывает мост, иначе — обычный переход.
+  function openBot(e) {
+    var url = e.currentTarget.href;
+    try {
+      if (window.WebApp && typeof window.WebApp.openMaxLink === 'function') {
+        e.preventDefault();
+        window.WebApp.openMaxLink(url);
+      }
+    } catch (err) { /* остаётся обычная ссылка */ }
   }
 
   function readBalanceFromLink() {
@@ -869,6 +905,24 @@
     return b;
   }
 
+  /* Маршрут в Яндекс Картах на общественном транспорте. Без точки из бота
+   * старт пустой — Карты сами подставят текущее местоположение. */
+  function routeUrl(item) {
+    var from = state.origin ? state.origin.lat + ',' + state.origin.lon : '';
+    return 'https://yandex.ru/maps/?rtext=' + encodeURIComponent(from + '~' + item.venueLat + ',' + item.venueLon)
+      + '&rtt=mt';
+  }
+
+  function routeButton(item) {
+    var a = el('a', 'btn btn--primary btn--route');
+    a.href = routeUrl(item);
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.appendChild(icon('map', 18));
+    a.appendChild(el('span', null, 'Маршрут'));
+    return a;
+  }
+
   /* ---- Экран 2: свайп -------------------------------------------------- */
 
   function renderDeck() {
@@ -1394,6 +1448,7 @@
     head.appendChild(el('p', 'detail__text', item.summary));
     head.appendChild(actions(item));
     head.appendChild(saveButton(item));
+    head.appendChild(routeButton(item));
     card.appendChild(head);
 
     wrap.appendChild(card);
@@ -1953,12 +2008,17 @@
   prepareFeed();
   // Кнопка /stats открывает приложение сразу на статистике, минуя главный экран.
   var forStats = openedForStats();
+  // Вне MAX сервер не спросить: без кнопки бота сразу просим пройти анкету.
+  var unregistered = !forStats && !openedFromBot() && !INIT;
   if (forStats) { state.screen = 'screen-stats'; }
+  if (unregistered) { state.screen = 'screen-register'; }
+  document.getElementById('register-bot').addEventListener('click', openBot);
   render();
   // Вкладку могли закрыть, не ответив: незаданный вопрос ждёт в хранилище.
   // На статистике не спрашиваем: модальное окно закрыло бы доску на защите,
   // а вопрос останется в хранилище до обычного открытия.
-  if (!forStats) { askPurchase(); }
+  if (!forStats && !unregistered) { askPurchase(); }
+  if (!forStats && !openedFromBot()) { checkRegistered(); }
   // Отметки с сервера — после первой отрисовки: локальный кеш показываем сразу.
   pull();
 })();
