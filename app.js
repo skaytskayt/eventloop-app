@@ -1210,14 +1210,14 @@
         // Маршрут рядом с покупкой: решив пойти, человек сразу смотрит, как доехать.
         var route = routeButton(item);
         route.className = 'btn btn--ghost';
-        // Вдвоём в узкой колонке «Купить билет» не помещается; цена уже над кнопкой.
-        buy.textContent = 'Купить';
+        // Кнопки — под фото и текстом, на всю ширину карточки: в колонке
+        // рядом с фото им тесно.
         var btns = el('div', 'row__btns');
         btns.appendChild(buy);
         btns.appendChild(route);
-        main.appendChild(btns);
       }
       row.appendChild(main);
+      if (btns) { row.appendChild(btns); }
 
       // На «Пойду» сердце уже залито, и нажатие снимает отметку.
       // На «Отложено» оно пустое — это приглашение решиться, поэтому
