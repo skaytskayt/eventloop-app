@@ -1258,6 +1258,27 @@
       });
       row.appendChild(heart);
 
+      // Сердце на «Отложено» переносит в «Пойду», поэтому передумавшему
+      // нужна отдельная кнопка — иначе отложенное было не убрать вовсе.
+      if (!liked) {
+        var drop = el('button', 'row__drop');
+        drop.type = 'button';
+        drop.setAttribute('aria-label', 'Убрать из отложенных');
+        drop.appendChild(icon('close', 18));
+        drop.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (row.classList.contains('is-leaving')) { return; }
+          row.classList.add('is-leaving');
+          setTimeout(function () {
+            forget(item.eventId);
+            send('UNDO', item.eventId);
+            render();
+            toast('Убрали из отложенных');
+          }, 440);
+        });
+        row.appendChild(drop);
+      }
+
       box.appendChild(row);
     });
   }

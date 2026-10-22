@@ -407,6 +407,7 @@ body.is-dark { background: var(--card); }
 .row .price__from, .row .price__note { color: var(--ink-soft); font-size: 12px; }
 .row__heart { position: absolute; right: 12px; top: 12px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--violet); transition: color .2s ease; }
 .row__heart--off { color: #c7c2d8; }
+.row__drop { position: absolute; right: 13px; top: 46px; border: 0; background: none; padding: 0; cursor: pointer; color: #b3aec6; }
 .row .btn--buy { margin-top: 10px; width: 100%; }
 .row__btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .row__btns .btn { flex: 1 1 auto; width: auto; min-width: max-content; height: 40px; margin-top: 0; padding: 0 8px; gap: 5px; font-size: 13px; }
