@@ -725,6 +725,99 @@
     return p;
   }
 
+  /* ---- Билет: карточка списков ----------------------------------------
+   * Избранное, купленное и «Весь баланс» рисуются одним билетом: слева фото
+   * и описание с кнопками, справа за перфорацией — корешок с датой и
+   * временем. Мелкие действия (сердце, убрать, заменить) живут в корешке,
+   * чтобы под описанием оставалась только пара больших кнопок.
+   * o: { buttons: [узлы], stub: [узлы], from: «от» у цены, note: строка, cls } */
+  var MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+  function ticket(item, o) {
+    var card = el('article', 'ticket' + (o.cls ? ' ' + o.cls : ''));
+    openOnTap(card, item, null);
+
+    var body = el('div', 'ticket__body');
+    var top = el('div', 'ticket__top');
+    top.appendChild(photo(item, 'ticket__photo'));
+    var info = el('div', 'ticket__info');
+    info.appendChild(el('span', 'badge', Cat.title(item.category)));
+    info.appendChild(el('h3', 'ticket__title', item.title));
+    info.appendChild(el('p', 'ticket__venue', item.venueName));
+    info.appendChild(metaRow('pin', Fmt.distance(item.distanceKm) + (item.venueAddress ? ' · ' + item.venueAddress : '')));
+    var price = el('div', 'ticket__price');
+    price.appendChild(icon('ticket', 16));
+    var sum = el('b', null, Fmt.money(item.priceRub));
+    if (o.from) { price.appendChild(el('span', 'ticket__from', 'от')); }
+    price.appendChild(sum);
+    price.appendChild(el('span', 'ticket__note', 'по Пушкинской карте'));
+    info.appendChild(price);
+    if (o.note) { info.appendChild(el('p', 'row__left', o.note)); }
+    top.appendChild(info);
+    body.appendChild(top);
+
+    if (o.buttons && o.buttons.length) {
+      var btns = el('div', 'ticket__btns');
+      o.buttons.forEach(function (b) { btns.appendChild(b); });
+      body.appendChild(btns);
+    }
+    card.appendChild(body);
+
+    // Корешок: дата крупно, время отдельно — по московскому времени, как в whenText.
+    var d = new Date(new Date(item.startsAt).getTime() + MSK);
+    var stub = el('div', 'ticket__stub');
+    stub.appendChild(el('span', 'ticket__day', String(d.getUTCDate())));
+    stub.appendChild(el('span', 'ticket__month', MONTHS[d.getUTCMonth()]));
+    stub.appendChild(el('span', 'ticket__year', String(d.getUTCFullYear())));
+    stub.appendChild(el('i', 'ticket__rule'));
+    stub.appendChild(el('span', 'ticket__time',
+      ('0' + d.getUTCHours()).slice(-2) + ':' + ('0' + d.getUTCMinutes()).slice(-2)));
+    if (o.stub && o.stub.length) {
+      var acts = el('div', 'ticket__acts');
+      o.stub.forEach(function (b) { acts.appendChild(b); });
+      stub.appendChild(acts);
+    }
+    card.appendChild(stub);
+    return card;
+  }
+
+  /* «Купить билет»: касса открывается в новой вкладке, и вернётся человек
+   * уже сюда. Запоминаем, за чем он ушёл, чтобы спросить про покупку. */
+  function buyButton(item) {
+    var buy = el('a', 'btn btn--buy');
+    buy.href = item.ticketUrl;
+    buy.target = '_blank';
+    buy.rel = 'noopener noreferrer';
+    buy.textContent = 'Купить билет';
+    buy.addEventListener('click', function () {
+      state.pending = item.eventId;
+      save();
+      send('CLICK_BUY', item.eventId);
+    });
+    return buy;
+  }
+
+  // Маршрут рядом с покупкой: решив пойти, человек сразу смотрит, как доехать.
+  function routeGhost(item) {
+    var route = routeButton(item);
+    route.className = 'btn btn--ghost';
+    return route;
+  }
+
+  // Мелкая кнопка корешка: иконка и подпись под ней.
+  function stubButton(name, label, cls, onClick) {
+    var b = el('button', 'ticket__act' + (cls ? ' ' + cls : ''));
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    b.appendChild(icon(name, 18));
+    b.addEventListener('click', function (e) {
+      // Билет целиком открывает мероприятие — нажатие наверх не отдаём.
+      e.stopPropagation();
+      onClick(b);
+    });
+    return b;
+  }
+
   /* В ряду стоит пара решений — «да» и «нет». «Отложить» это не решение,
    * а откладывание решения, поэтому она ушла отдельной кнопкой ниже. */
   function actions(item) {
@@ -973,6 +1066,7 @@
 
     var ph = photo(item, 'bigcard__photo');
     ph.appendChild(el('span', 'counter', shown + '/' + total));
+    openOnTap(card, item, card);
     card.appendChild(ph);
 
     var body = el('div', 'bigcard__body');
@@ -1081,6 +1175,7 @@
 
     var card = el('article', 'swipecard' + (state.entering ? ' is-entering' : ''));
     var ph = photo(item, 'swipecard__photo');
+    openOnTap(card, item, null);
 
     // На макете бейдж, заголовок и дата лежат поверх фотографии, а не под ней.
     var over = el('div', 'swipecard__over');
@@ -1215,109 +1310,62 @@
 
     list.forEach(function (item) {
       var liked = state.tab === 'liked';
-      var row = el('article', 'row' + (liked ? '' : ' row--small'));
-
-      var ph = photo(item, 'row__photo');
-      openOnTap(row, item, null);
-      row.appendChild(ph);
-
-      var main = el('div', 'row__main');
-      main.appendChild(el('span', 'badge', Cat.title(item.category)));
-      main.appendChild(el('h3', 'row__title', item.title));
-      main.appendChild(metaRow('calendar', whenText(item.startsAt)));
-      main.appendChild(metaRow('pin', item.venueName));
-      main.appendChild(priceBlock(item, true));
       // Главное, что человек хочет знать в избранном: хватит ли карты.
       // Считаем по тому кошельку, из которого этот билет и оплачивается.
       var w = walletOf(item.category);
-      main.appendChild(el('p', 'row__left', item.priceRub > leftIn(w)
+      var note = item.priceRub > leftIn(w)
         ? 'Не хватает ' + rub(item.priceRub - leftIn(w)) + ' на «' + WALLETS[w].title + '»'
-        : 'Останется ' + rub(leftIn(w) - item.priceRub) + ' на «' + WALLETS[w].title + '»'));
-
-      if (liked) {
-        var buy = el('a', 'btn btn--buy');
-        buy.href = item.ticketUrl;
-        buy.target = '_blank';
-        buy.rel = 'noopener noreferrer';
-        buy.textContent = 'Купить билет';
-        // Касса открывается в новой вкладке, и вернётся человек уже сюда.
-        // Запоминаем, за чем он ушёл, чтобы спросить про покупку на возврате.
-        buy.addEventListener('click', function () {
-          state.pending = item.eventId;
-          save();
-          send('CLICK_BUY', item.eventId);
-        });
-        // Маршрут рядом с покупкой: решив пойти, человек сразу смотрит, как доехать.
-        var route = routeButton(item);
-        route.className = 'btn btn--ghost';
-        // Кнопки — под фото и текстом, на всю ширину карточки: в колонке
-        // рядом с фото им тесно.
-        var btns = el('div', 'row__btns');
-        btns.appendChild(buy);
-        btns.appendChild(route);
-      }
-      row.appendChild(main);
-      if (btns) { row.appendChild(btns); }
+        : 'Останется ' + rub(leftIn(w) - item.priceRub) + ' на «' + WALLETS[w].title + '»';
+      var row;
 
       // На «Пойду» сердце уже залито, и нажатие снимает отметку.
       // На «Отложено» оно пустое — это приглашение решиться, поэтому
       // нажатие переносит событие в «Пойду», а не стирает его.
-      var heart = el('button', 'row__heart' + (liked ? '' : ' row__heart--off'));
-      heart.type = 'button';
-      heart.setAttribute('aria-label', liked ? 'Убрать из избранного' : 'Пойду');
-      heart.appendChild(icon(liked ? 'heart-fill' : 'heart', 20));
-      heart.addEventListener('click', function (e) {
-        // Иконка ниже заменяется прямо в этом обработчике, и строка уже не
-        // узнала бы в выкинутом из DOM узле кнопку — открыла бы карточку.
-        e.stopPropagation();
-        if (heart.classList.contains('is-liking') || heart.classList.contains('is-unliking')) { return; }
-        if (liked) {
-          // Случайное касание стирало событие насовсем: из подборки оно уже
-          // ушло, и найти его снова было негде. Поэтому сначала спрашиваем.
-          askUnlike(item, function (choice) {
-            heart.classList.add('row__heart--off', 'is-unliking');
-            heart.replaceChildren(icon('heart', 20));
-            row.classList.add('is-leaving');
-            setTimeout(function () {
-              if (choice === 'saved') {
-                mark(item, 'saved');
-                send('SAVE', item.eventId);
-              } else {
-                forget(item.eventId);
-                send('UNDO', item.eventId);
-              }
-              render();
-              toast(choice === 'saved' ? 'Перенесли в «Отложенные»' : 'Убрали из избранного');
-            }, 440);
-          });
-          return;
-        }
-        heart.classList.remove('row__heart--off');
-        heart.classList.add('is-liking');
-        heart.replaceChildren(icon('heart-fill', 20));
-        row.classList.add('is-leaving');
-        setTimeout(function () {
-          mark(item, 'liked');
-          send('LIKE', item.eventId);
-          render();
-          // Карточка уезжает с текущей вкладки, а появляется на соседней,
-          // и переключать вкладку под человеком во время разбора списка
-          // незачем. Без этой подсказки нажатие выглядит так, будто
-          // событие просто пропало.
-          toast('Перенесли в «Пойду»');
-        }, 440);
-      });
-      row.appendChild(heart);
+      var heart = stubButton(liked ? 'heart-fill' : 'heart', liked ? 'Убрать из избранного' : 'Пойду',
+        'ticket__heart' + (liked ? '' : ' ticket__heart--off'), function () {
+          if (heart.classList.contains('is-liking') || heart.classList.contains('is-unliking')) { return; }
+          if (liked) {
+            // Случайное касание стирало событие насовсем: из подборки оно уже
+            // ушло, и найти его снова было негде. Поэтому сначала спрашиваем.
+            askUnlike(item, function (choice) {
+              heart.classList.add('ticket__heart--off', 'is-unliking');
+              heart.replaceChildren(icon('heart', 18));
+              row.classList.add('is-leaving');
+              setTimeout(function () {
+                if (choice === 'saved') {
+                  mark(item, 'saved');
+                  send('SAVE', item.eventId);
+                } else {
+                  forget(item.eventId);
+                  send('UNDO', item.eventId);
+                }
+                render();
+                toast(choice === 'saved' ? 'Перенесли в «Отложенные»' : 'Убрали из избранного');
+              }, 440);
+            });
+            return;
+          }
+          heart.classList.remove('ticket__heart--off');
+          heart.classList.add('is-liking');
+          heart.replaceChildren(icon('heart-fill', 18));
+          row.classList.add('is-leaving');
+          setTimeout(function () {
+            mark(item, 'liked');
+            send('LIKE', item.eventId);
+            render();
+            // Карточка уезжает с текущей вкладки, а появляется на соседней,
+            // и переключать вкладку под человеком во время разбора списка
+            // незачем. Без этой подсказки нажатие выглядит так, будто
+            // событие просто пропало.
+            toast('Перенесли в «Пойду»');
+          }, 440);
+        });
 
       // Сердце на «Отложено» переносит в «Пойду», поэтому передумавшему
       // нужна отдельная кнопка — иначе отложенное было не убрать вовсе.
+      var stub = [heart];
       if (!liked) {
-        var drop = el('button', 'row__drop');
-        drop.type = 'button';
-        drop.setAttribute('aria-label', 'Убрать из отложенных');
-        drop.appendChild(icon('close', 18));
-        drop.addEventListener('click', function (e) {
-          e.stopPropagation();
+        stub.push(stubButton('close', 'Убрать из отложенных', 'ticket__drop', function () {
           if (row.classList.contains('is-leaving')) { return; }
           row.classList.add('is-leaving');
           setTimeout(function () {
@@ -1326,10 +1374,10 @@
             render();
             toast('Убрали из отложенных');
           }, 440);
-        });
-        row.appendChild(drop);
+        }));
       }
 
+      row = ticket(item, { buttons: [buyButton(item), routeGhost(item)], stub: stub, from: true, note: note });
       box.appendChild(row);
     });
   }
@@ -1360,7 +1408,9 @@
   // запоминается: «Собрать заново» сначала ищет среди нового.
   // exclude — то, что меняем: вернуть его же было бы издевательством, но
   // если без него собрать нечего, лучше он, чем пустой экран.
-  function makePlan(keep, prefer, exclude) {
+  // order — прежний порядок карточек: при замене оставшиеся стоят на своих
+  // местах, а новые встают в освободившиеся, а не уезжают в конец.
+  function makePlan(keep, prefer, exclude, order) {
     var items = planCandidates();
     var others = items.filter(function (e) { return (exclude || []).indexOf(e.eventId) < 0; });
     var opts = { items: others, left: planLeft(), walletOf: walletOf, keep: keep, avoid: planSeen, prefer: prefer };
@@ -1370,6 +1420,7 @@
       var all = Plan.build(opts);
       if (all && (!built || all.rest < built.rest)) { built = all; }
     }
+    if (built && order) { built.items = inPlace(order, keep, built.items); }
     var fresh = {};
     if (built) {
       built.items.forEach(function (e) {
@@ -1378,6 +1429,17 @@
       });
     }
     plan = { sig: planSig(), result: built, marked: [], fresh: fresh };
+  }
+
+  /* Новые события — в слоты заменённых по порядку. Если новых больше, чем
+   * слотов, лишние в конце; если меньше — пустые слоты просто выпадают. */
+  function inPlace(order, keep, items) {
+    var added = items.filter(function (e) { return keep.indexOf(e) < 0; });
+    var out = [];
+    order.forEach(function (e) {
+      if (keep.indexOf(e) >= 0) { out.push(e); } else if (added.length) { out.push(added.shift()); }
+    });
+    return out.concat(added);
   }
 
   function regenerate() {
@@ -1389,7 +1451,7 @@
     var marked = plan.marked;
     var keep = plan.result.items.filter(function (e) { return marked.indexOf(e.eventId) < 0; });
     var before = plan.result;
-    makePlan(keep, marked.length, marked);
+    makePlan(keep, marked.length, marked, before.items);
     if (!plan.result) {
       // Замены под остаток нет — оставляем как было, а не пустой экран.
       plan.result = before;
@@ -1416,7 +1478,7 @@
       var gone = plan.result.items.filter(function (e) { return cand.indexOf(e) < 0; });
       if (gone.length) {
         var keep = plan.result.items.filter(function (e) { return gone.indexOf(e) < 0; });
-        makePlan(keep, gone.length, gone.map(function (e) { return e.eventId; }));
+        makePlan(keep, gone.length, gone.map(function (e) { return e.eventId; }), plan.result.items);
         if (!plan.result) { makePlan([], 0); }
       }
     }
@@ -1429,7 +1491,7 @@
 
     box.appendChild(planSummary(r));
 
-    var list = el('div', 'fav-list plan-list');
+    var list = el('div', 'fav-list');
     r.items.forEach(function (item) { list.appendChild(planRow(item)); });
     box.appendChild(list);
 
@@ -1484,33 +1546,19 @@
 
   function planRow(item) {
     var on = plan.marked.indexOf(item.eventId) >= 0;
-    var row = el('article', 'row plan-row' + (on ? ' is-marked' : '') + (plan.fresh[item.eventId] ? ' is-new' : ''));
-    openOnTap(row, item, null);
-    row.appendChild(photo(item, 'row__photo'));
-
-    var main = el('div', 'row__main');
-    main.appendChild(el('span', 'badge', Cat.title(item.category)));
-    main.appendChild(el('h3', 'row__title', item.title));
-    main.appendChild(metaRow('calendar', whenText(item.startsAt)));
-    main.appendChild(metaRow('pin', item.venueName + ' · ' + Fmt.distance(item.distanceKm)));
-    main.appendChild(priceBlock(item, false));
-    row.appendChild(main);
-
-    var btns = el('div', 'row__btns');
-    var swap = el('button', 'btn btn--ghost plan-row__swap');
-    swap.type = 'button';
-    swap.setAttribute('aria-pressed', on ? 'true' : 'false');
-    swap.appendChild(icon(on ? 'close' : 'pencil', 16));
-    swap.appendChild(el('span', null, on ? 'Не менять' : 'Заменить'));
-    swap.addEventListener('click', function () {
+    var swap = stubButton(on ? 'close' : 'pencil', on ? 'Не менять' : 'Заменить', 'ticket__swap', function () {
       plan.marked = on
         ? plan.marked.filter(function (id) { return id !== item.eventId; })
         : plan.marked.concat([item.eventId]);
       render();
     });
-    btns.appendChild(swap);
-    row.appendChild(btns);
-    return row;
+    swap.setAttribute('aria-pressed', on ? 'true' : 'false');
+    swap.appendChild(el('span', null, on ? 'Не менять' : 'Заменить'));
+    return ticket(item, {
+      buttons: [buyButton(item), routeGhost(item)],
+      stub: [swap],
+      cls: 'plan-row' + (on ? ' is-marked' : '') + (plan.fresh[item.eventId] ? ' is-new' : '')
+    });
   }
 
   /* ---- Профиль --------------------------------------------------------- */
@@ -1630,30 +1678,30 @@
     // Последняя покупка сверху: к ней и возвращаются, если нажали «Да» зря.
     state.bought.slice().reverse().forEach(function (b) {
       var item = byEventId(b.eventId);
-      var row = el('article', 'row row--small');
-      if (item) {
-        row.appendChild(photo(item, 'row__photo'));
-        openOnTap(row, item, null);
-      }
-
-      var main = el('div', 'row__main');
-      main.appendChild(el('span', 'badge', WALLETS[b.wallet].title));
-      main.appendChild(el('h3', 'row__title', item ? item.title : 'Мероприятие'));
-      if (item) { main.appendChild(metaRow('calendar', whenText(item.startsAt))); }
-      main.appendChild(el('p', 'row__left', 'Списано ' + Fmt.money(b.priceRub)));
-
-      var undo = el('button', 'row__undo', 'Отменить покупку');
+      var undo = el('button', 'btn btn--ghost', 'Отменить покупку');
       undo.type = 'button';
       undo.addEventListener('click', function (e) {
-        // Карточка целиком открывает мероприятие, поэтому клик по кнопке
+        // Билет целиком открывает мероприятие, поэтому клик по кнопке
         // нельзя отдавать наверх.
         e.stopPropagation();
         cancelPurchase(b.eventId);
       });
-      main.appendChild(undo);
-
-      row.appendChild(main);
-      box.appendChild(row);
+      // Событие выпало из афиши — билет нарисовать не из чего, но отменить
+      // покупку и вернуть деньги на кошелёк человек всё равно должен мочь.
+      if (!item) {
+        var row = el('article', 'row row--small');
+        var main = el('div', 'row__main');
+        main.appendChild(el('h3', 'row__title', 'Мероприятие'));
+        main.appendChild(el('p', 'row__left', 'Списано ' + Fmt.money(b.priceRub)));
+        main.appendChild(undo);
+        row.appendChild(main);
+        box.appendChild(row);
+        return;
+      }
+      box.appendChild(ticket(item, {
+        buttons: [undo, routeGhost(item)],
+        note: 'Списано ' + Fmt.money(b.priceRub) + ' с «' + WALLETS[b.wallet].title + '»'
+      }));
     });
   }
 
@@ -2198,7 +2246,7 @@
   }
 
   /* Ответ — внешние данные (категории и eventId пишет клиент), поэтому только
-   * textContent. Шапку и переехавший логотип не трогаем — только #stats-body. */
+   * textContent. Шапку не трогаем — только #stats-body. */
   function renderStats(s) {
     var parts = [statsKpi(s)];
     statsFunnel(parts, s);
@@ -2231,23 +2279,6 @@
     });
   }
 
-  /* Логотип уезжает вместе с содержимым, а не висит прибитым сверху.
-   * Узел в разметке один, поэтому он переезжает в скролл активного экрана.
-   * Подробная карточка — исключение: её тело перерисовывается целиком и
-   * снесло бы логотип вместе с остальным. */
-  var topbar = document.querySelector('.topbar');
-  var appBox = document.querySelector('.app');
-
-  // На подборке и свайпе логотип съедал место, и карточка не влезала в экран целиком.
-  var NO_LOGO = { 'screen-feed': true, 'screen-swipe': true };
-
-  function placeTopbar() {
-    topbar.hidden = !!NO_LOGO[state.screen];
-    var scroll = document.querySelector('#' + state.screen + ' .screen__scroll');
-    var host = (scroll && state.screen !== 'screen-detail') ? scroll : appBox;
-    if (host.firstChild !== topbar) { host.insertBefore(topbar, host.firstChild); }
-  }
-
   function render() {
     renderFilters('feed-filters');
     renderFilters('swipe-filters');
@@ -2257,7 +2288,6 @@
       if (s) { s.classList.toggle('is-active', id === state.screen); }
     });
     document.body.classList.toggle('is-dark', !!DARK[state.screen]);
-    placeTopbar();
     renderNav();
     renderFeed();
     renderDeck();

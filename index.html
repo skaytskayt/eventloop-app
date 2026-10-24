@@ -9,7 +9,9 @@
      сам бэкенд по /app/). Для копии на GitHub Pages — HTTPS-адрес бэкенда без
      завершающего слэша. -->
 <meta name="eventloop-api" content="https://short-where-other-aurora.trycloudflare.com">
-<link rel="stylesheet" href="styles.css">
+<!-- ?v= — версия выкатки: GitHub Pages кеширует файлы на 10 минут, и без неё
+     новая страница подтягивала старые стили и афишу. Меняется при каждой выкатке. -->
+<link rel="stylesheet" href="styles.css?v=20261024-3">
 </head>
 <body>
 
@@ -72,15 +74,11 @@
 
 <div class="app">
 
-  <header class="topbar">
-    <img class="topbar__logo" src="assets/max-x-pushkin.png" alt="MAX × Пушкинская карта">
-  </header>
-
   <section id="screen-welcome" class="screen screen--light is-active">
     <div class="welcome" id="welcome">
       <img class="welcome__art" src="assets/pushkin-main.png" alt="">
       <h1 class="welcome__title">Карта событий<br>уже ждёт тебя</h1>
-      <p class="welcome__sub">Открывай театры, выставки<br>и другие культурные события<br>рядом с тобой.</p>
+      <p class="welcome__sub">Два режима: листай карточки, как в&nbsp;знакомствах, — или&nbsp;«Потратить весь баланс»: подборка впритык к&nbsp;твоему балансу.</p>
       <button class="welcome__hint" id="welcome-start" type="button" aria-label="Начать">
         <svg class="welcome__hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/>
@@ -257,9 +255,9 @@
 
 <!-- Мост MAX: даёт window.WebApp с параметром запуска из кнопки бота. -->
 <script src="https://st.max.ru/js/max-web-app.js"></script>
-<script src="format.js"></script>
-<script src="data.js"></script>
-<script src="plan.js"></script>
-<script src="app.js"></script>
+<script src="format.js?v=20261024-3"></script>
+<script src="data.js?v=20261024-3"></script>
+<script src="plan.js?v=20261024-3"></script>
+<script src="app.js?v=20261024-3"></script>
 </body>
 </html>

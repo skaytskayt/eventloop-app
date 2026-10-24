@@ -391,45 +391,128 @@ body.is-dark { background: var(--card); }
 
 .fav-list { padding: 14px var(--gutter) 0; display: flex; flex-direction: column; gap: 12px; }
 
+/* Запасная строка купленного, когда события уже нет в афише. */
 .row {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
   gap: 12px;
   padding: 12px;
   background: var(--surface);
   border-radius: 18px;
   box-shadow: 0 2px 10px rgba(30,20,80,.05);
 }
-.row__photo { width: 104px; height: 140px; flex: none; border-radius: 12px; overflow: hidden; }
-.row--small .row__photo { width: 84px; height: 112px; }
-.row__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.row__main { flex: 1; min-width: 0; padding-right: 26px; }
-.row__title { margin: 7px 0 0; font-size: 14px; line-height: 1.25; font-weight: 800; }
-.row .meta { color: var(--ink-soft); font-size: 12px; margin-top: 5px; }
-.row .price { margin-top: 7px; }
-.row .price__value { font-size: 14px; }
-.row .price__from, .row .price__note { color: var(--ink-soft); font-size: 12px; }
-.row__heart { position: absolute; right: 12px; top: 12px; border: 0; background: none; padding: 0; cursor: pointer; color: var(--violet); transition: color .2s ease; }
-.row__heart--off { color: #c7c2d8; }
-.row__drop { position: absolute; right: 13px; top: 46px; border: 0; background: none; padding: 0; cursor: pointer; color: #b3aec6; }
-.row .btn--buy { margin-top: 10px; width: 100%; }
-/* Купить и маршрут — одной строкой под фото и текстом, на всю ширину карточки. */
-.row__btns { flex: 1 0 100%; display: flex; gap: 8px; }
-.row .row__btns .btn { height: 42px; margin-top: 0; }
-.row .row__btns .btn--buy { flex: 1 1 auto; width: auto; }
-.row__btns .btn--ghost { flex: 0 0 auto; padding: 0 16px; }
-.row__btns .btn .ic { width: 18px; height: 18px; }
-.row__btns .btn--ghost .ic { color: var(--violet); }
+.row__main { flex: 1; min-width: 0; }
+.row__title { margin: 0; font-size: 14px; line-height: 1.25; font-weight: 800; }
+.row .btn { margin-top: 10px; height: 40px; width: 100%; }
 .row__left { margin: 6px 0 0; font-size: 13px; font-weight: 700; color: var(--violet); }
 
-/* Сердце сначала меняет заливку, и только потом строка уходит со вкладки.
+/* ---- Билет ---------------------------------------------------------------
+ * Карточка списков: слева фото, описание и пара кнопок, справа за пунктиром
+ * перфорации — корешок с датой. Вырезы перфорации — круги цвета страницы. */
+
+.ticket {
+  position: relative;
+  display: flex;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(30,20,80,.06);
+  cursor: pointer;
+}
+.ticket__body { flex: 1; min-width: 0; padding: 12px; }
+.ticket__top { display: flex; gap: 12px; }
+.ticket__photo { width: 84px; height: 116px; flex: none; border-radius: 12px; overflow: hidden; }
+.ticket__photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ticket__info { flex: 1; min-width: 0; }
+.ticket__info .badge { font-size: 11px; padding: 3px 9px; }
+.ticket__title {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.22;
+  font-weight: 800;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.ticket__venue { margin: 4px 0 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket .meta { margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
+.ticket .meta span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket__price {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 5px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  background: #f1ecff;
+  color: var(--violet);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ticket__price .ic { align-self: center; }
+.ticket__price b { font-size: 14px; font-weight: 800; color: var(--ink); }
+.ticket__from { font-size: 12px; font-weight: 800; }
+.ticket__btns { display: flex; gap: 8px; margin-top: 12px; }
+.ticket__btns .btn { height: 40px; font-size: 13px; gap: 6px; }
+.ticket__btns .btn--buy { flex: 1.25 1 0; }
+.ticket__btns .btn .ic { width: 16px; height: 16px; }
+.ticket__btns .btn--ghost .ic { color: var(--violet); }
+
+.ticket__stub {
+  position: relative;
+  flex: none;
+  width: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 4px 12px;
+  border-left: 2px dashed #d9d0f7;
+  text-align: center;
+}
+.ticket__stub::before,
+.ticket__stub::after {
+  content: '';
+  position: absolute;
+  left: -11px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--page);
+}
+.ticket__stub::before { top: -10px; }
+.ticket__stub::after { bottom: -10px; }
+.ticket__day { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -.02em; }
+.ticket__month { margin-top: 2px; font-size: 15px; font-weight: 800; }
+.ticket__year { margin-top: 1px; font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.ticket__rule { display: block; width: 34px; height: 1px; margin: 10px 0; background: var(--line); }
+.ticket__time { font-size: 15px; font-weight: 800; }
+.ticket__acts { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: auto; padding-top: 12px; }
+.ticket__act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--violet);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+.ticket__heart--off { color: #c7c2d8; }
+.ticket__drop { color: #b3aec6; }
+
+/* Сердце сначала меняет заливку, и только потом билет уходит со вкладки.
  * Без этой паузы событие просто пропадает из списка, и непонятно, сработало
  * нажатие или нет. Лайк — сердце наливается и подскакивает, снятие — гаснет
  * и сжимается. */
-.row__heart.is-liking { color: var(--violet); animation: heart-pop .26s ease; }
-.row__heart.is-unliking { animation: heart-drop .26s ease; }
-.row.is-leaving {
+.ticket__heart.is-liking { color: var(--violet); animation: heart-pop .26s ease; }
+.ticket__heart.is-unliking { animation: heart-drop .26s ease; }
+.ticket.is-leaving {
   opacity: 0;
   transform: translateX(14px);
   transition: opacity .2s ease .24s, transform .2s ease .24s;
@@ -448,8 +531,9 @@ body.is-dark { background: var(--card); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row__heart, .row__heart.is-liking, .row__heart.is-unliking,
-  .row.is-leaving { animation: none; transition: none; }
+  .ticket__heart.is-liking, .ticket__heart.is-unliking,
+  .ticket.is-leaving { animation: none; transition: none; }
+}
 }
 
 /* ---- Фильтры ------------------------------------------------------------
@@ -560,14 +644,6 @@ body.is-dark { background: var(--card); }
 }
 .screen.is-peek { z-index: 1; }
 #screen-welcome.is-leaving { z-index: 30; }
-
-/* ---- Шапка ------------------------------------------------------------
- * Общий логотип над всеми экранами. Фон у шапки свой и всегда светлый:
- * чёрные надписи логотипа на тёмном экране карточки иначе не прочитать. */
-
-.topbar[hidden] { display: none; }
-.topbar { flex: none; display: flex; padding: 14px var(--gutter) 10px; background: var(--page); }
-.topbar__logo { display: block; height: 36px; width: auto; max-width: 100%; }
 
 /* ---- Экран «всё просмотрено» -------------------------------------------- */
 
@@ -804,22 +880,6 @@ body.is-dark { background: var(--card); }
 
 .section-title { margin: 22px 0 0; padding: 0 var(--gutter); font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
 
-/* Отмена — текстовой ссылкой под суммой, не кнопкой: она нужна редко,
- * и выглядеть заманчивее «Купить билет» ей незачем. */
-.row__undo {
-  display: inline-block;
-  margin-top: 8px;
-  border: 0;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-soft);
-  text-decoration: underline;
-  cursor: pointer;
-}
-.row__undo:hover { color: var(--violet); }
 
 /* ---- Вопрос о покупке ---------------------------------------------------
  * Появляется, когда человек вернулся из кассы. Списать деньги молча нельзя,
@@ -1154,12 +1214,10 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .plan-sum__wallets { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; opacity: .8; }
 .plan-sum__note { margin: 6px 0 0; font-size: 12px; opacity: .8; }
 
-.plan-row .row__main { padding-right: 0; }
-.plan-row .plan-row__swap { flex: 1 1 auto; height: 38px; gap: 6px; font-size: 13px; }
-/* Отмеченная к замене карточка блёкнет: видно, что её не будет. */
+/* Отмеченный к замене билет блёкнет: видно, что его не будет. */
 .plan-row.is-marked { box-shadow: inset 0 0 0 2px var(--lilac); }
-.plan-row.is-marked .row__photo, .plan-row.is-marked .row__main { opacity: .45; }
-.plan-row.is-marked .plan-row__swap { background: var(--lilac-soft); }
+.plan-row.is-marked .ticket__body, .plan-row.is-marked .ticket__stub > span { opacity: .45; }
+.plan-row.is-marked .ticket__swap { color: var(--ink); }
 .plan-row.is-new { animation: card-enter .34s cubic-bezier(.2, .8, .2, 1); }
 
 /* Кнопки прилипают к низу: три карточки не влезают в экран, а листать
