@@ -2054,7 +2054,11 @@
   var topbar = document.querySelector('.topbar');
   var appBox = document.querySelector('.app');
 
+  // На подборке и свайпе логотип съедал место, и карточка не влезала в экран целиком.
+  var NO_LOGO = { 'screen-feed': true, 'screen-swipe': true };
+
   function placeTopbar() {
+    topbar.hidden = !!NO_LOGO[state.screen];
     var scroll = document.querySelector('#' + state.screen + ' .screen__scroll');
     var host = (scroll && state.screen !== 'screen-detail') ? scroll : appBox;
     if (host.firstChild !== topbar) { host.insertBefore(topbar, host.firstChild); }

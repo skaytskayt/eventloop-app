@@ -184,6 +184,9 @@ body.is-dark { background: var(--card); }
  * вырастут все вместе и останутся равными, вместо того чтобы обрезать кнопку. */
 .feed-card-slot > .bigcard {
   min-height: 580px;
+  /* Вслед за фото: 260 px — текст и кнопки под ним. */
+  min-height: calc(clamp(150px, calc(100vh - 432px), 320px) + 260px);
+  min-height: calc(clamp(150px, calc(100dvh - 432px), 320px) + 260px);
   display: flex;
   flex-direction: column;
 }
@@ -230,7 +233,8 @@ body.is-dark { background: var(--card); }
 }
 .bigcard.is-dragging { transition: none; }
 
-.bigcard__photo { position: relative; height: 320px; }
+/* Фото ужимается на низких экранах, чтобы карточка с кнопками влезала целиком. */
+.bigcard__photo { position: relative; height: 320px; height: clamp(150px, calc(100vh - 432px), 320px); height: clamp(150px, calc(100dvh - 432px), 320px); }
 .bigcard__photo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(1.14) contrast(1.06) saturate(1.05); }
 .bigcard__photo::after {
   content: '';
@@ -561,6 +565,7 @@ body.is-dark { background: var(--card); }
  * Общий логотип над всеми экранами. Фон у шапки свой и всегда светлый:
  * чёрные надписи логотипа на тёмном экране карточки иначе не прочитать. */
 
+.topbar[hidden] { display: none; }
 .topbar { flex: none; display: flex; padding: 14px var(--gutter) 10px; background: var(--page); }
 .topbar__logo { display: block; height: 36px; width: auto; max-width: 100%; }
 
