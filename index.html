@@ -103,8 +103,24 @@
         </button>
         <span class="swipe__counter" id="feed-counter"></span>
         <span class="swipe__track"><i id="feed-bar"></i></span>
+        <button class="plan-pill" id="feed-plan" type="button">
+          <svg class="ic ic--16"><use href="#icon-ticket"></use></svg><span>Потратить весь баланс</span>
+        </button>
       </div>
       <div id="feed-card" class="feed-card-slot"></div>
+    </div>
+  </section>
+
+  <section id="screen-plan" class="screen screen--light">
+    <div class="screen__scroll">
+      <div class="head">
+        <button class="head__back" id="plan-back" type="button" aria-label="Назад">
+          <svg class="ic ic--20"><use href="#icon-back"></use></svg>
+        </button>
+        <h1 class="head__title">Весь баланс</h1>
+      </div>
+      <div class="filters" id="plan-filters"></div>
+      <div id="plan-body"></div>
     </div>
   </section>
 
@@ -243,6 +259,7 @@
 <script src="https://st.max.ru/js/max-web-app.js"></script>
 <script src="format.js"></script>
 <script src="data.js"></script>
+<script src="plan.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

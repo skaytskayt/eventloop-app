@@ -1107,3 +1107,70 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .stats-cities__num { min-width: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 .stats-empty { margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+/* ---- «Потратить весь баланс» ---------------------------------------------
+ * Вход — пилюля в строке счётчика подборки: отдельная строка сдвинула бы
+ * карточку, а она подогнана под высоту экрана. */
+
+.plan-pill {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--violet);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(108,75,240,.28);
+}
+.deck-head .swipe__track { min-width: 24px; }
+
+.plan-sum {
+  margin: 14px var(--gutter) 0;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--violet);
+  color: #fff;
+}
+.plan-sum__label { font-size: 13px; font-weight: 700; opacity: .8; }
+.plan-sum__line { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+.plan-sum__value { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+.plan-sum__of { font-size: 14px; opacity: .8; }
+.plan-sum__rest { margin: 6px 0 0; font-size: 14px; font-weight: 700; }
+.plan-sum__rest--far { font-weight: 600; opacity: .9; line-height: 1.4; }
+.plan-sum__wallets { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 12px; opacity: .8; }
+.plan-sum__note { margin: 6px 0 0; font-size: 12px; opacity: .8; }
+
+.plan-row .row__main { padding-right: 0; }
+.plan-row .plan-row__swap { flex: 1 1 auto; height: 38px; gap: 6px; font-size: 13px; }
+/* Отмеченная к замене карточка блёкнет: видно, что её не будет. */
+.plan-row.is-marked { box-shadow: inset 0 0 0 2px var(--lilac); }
+.plan-row.is-marked .row__photo, .plan-row.is-marked .row__main { opacity: .45; }
+.plan-row.is-marked .plan-row__swap { background: var(--lilac-soft); }
+.plan-row.is-new { animation: card-enter .34s cubic-bezier(.2, .8, .2, 1); }
+
+/* Кнопки прилипают к низу: три карточки не влезают в экран, а листать
+ * к кнопке после каждой отметки неудобно. */
+.plan-btns {
+  position: sticky;
+  bottom: -16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 14px var(--gutter) 16px;
+  background: linear-gradient(rgba(246,245,251,0), var(--page) 14px);
+}
+.plan-btns .btn { flex: none; width: 100%; height: 46px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-row.is-new { animation: none; }
+}

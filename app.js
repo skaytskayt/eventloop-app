@@ -27,7 +27,7 @@
   var SVG = 'http://www.w3.org/2000/svg';
   var XLINK = 'http://www.w3.org/1999/xlink';
 
-  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile', 'screen-stats', 'screen-register'];
+  var SCREENS = ['screen-welcome', 'screen-feed', 'screen-swipe', 'screen-favorites', 'screen-detail', 'screen-profile', 'screen-stats', 'screen-register', 'screen-plan'];
   var DARK = { 'screen-swipe': true };
   var NO_NAV = { 'screen-welcome': true, 'screen-detail': true, 'screen-stats': true, 'screen-register': true };
 
@@ -1334,6 +1334,185 @@
     });
   }
 
+  /* ---- «Потратить весь баланс» ------------------------------------------
+   * 2–3 события (с кино — до 5), которые вместе съедают остаток почти целиком (см. plan.js).
+   * Подборка живёт только в памяти: это черновик, а не отметка. Не нравится
+   * целиком — собирается заново; отмеченные карточки меняются, остальные
+   * остаются. Фильтры общие с подборкой, и их смена собирает всё заново. */
+  var plan = null;
+  var planSeen = {};
+
+  function planCandidates() {
+    return pool().filter(function (e) {
+      return e.priceRub > 0 && !isBought(e.eventId) && state.disliked.indexOf(e.eventId) < 0;
+    });
+  }
+
+  function planSig() {
+    return JSON.stringify([cityCode(), state.date, state.cats, state.km, leftIn('CINEMA'), leftIn('OTHER')]);
+  }
+
+  function planLeft() {
+    return { CINEMA: leftIn('CINEMA'), OTHER: leftIn('OTHER') };
+  }
+
+  // keep — что остаётся, prefer — сколько карточек меняем. Показанное
+  // запоминается: «Собрать заново» сначала ищет среди нового.
+  // exclude — то, что меняем: вернуть его же было бы издевательством, но
+  // если без него собрать нечего, лучше он, чем пустой экран.
+  function makePlan(keep, prefer, exclude) {
+    var items = planCandidates();
+    var others = items.filter(function (e) { return (exclude || []).indexOf(e.eventId) < 0; });
+    var opts = { items: others, left: planLeft(), walletOf: walletOf, keep: keep, avoid: planSeen, prefer: prefer };
+    var built = Plan.build(opts);
+    if ((!built || !built.ok) && others.length < items.length && !keep.length) {
+      opts.items = items;
+      var all = Plan.build(opts);
+      if (all && (!built || all.rest < built.rest)) { built = all; }
+    }
+    var fresh = {};
+    if (built) {
+      built.items.forEach(function (e) {
+        if (keep.indexOf(e) < 0) { fresh[e.eventId] = true; }
+        planSeen[e.eventId] = true;
+      });
+    }
+    plan = { sig: planSig(), result: built, marked: [], fresh: fresh };
+  }
+
+  function regenerate() {
+    var current = plan && plan.result ? plan.result.items.map(function (e) { return e.eventId; }) : [];
+    makePlan([], 0, current);
+  }
+
+  function replaceMarked() {
+    var marked = plan.marked;
+    var keep = plan.result.items.filter(function (e) { return marked.indexOf(e.eventId) < 0; });
+    var before = plan.result;
+    makePlan(keep, marked.length, marked);
+    if (!plan.result) {
+      // Замены под остаток нет — оставляем как было, а не пустой экран.
+      plan.result = before;
+      plan.marked = marked;
+      toast('Заменить нечем — попробуй «Собрать заново»');
+    }
+  }
+
+  function openPlan() {
+    if (!plan || plan.sig !== planSig()) { makePlan([], 0); }
+    go('screen-plan');
+  }
+
+  function renderPlan() {
+    var box = document.getElementById('plan-body');
+    box.replaceChildren();
+    if (state.screen !== 'screen-plan') { return; }
+
+    if (!plan || plan.sig !== planSig()) { makePlan([], 0); }
+    // Событие могли оценить или купить в открытой карточке — его место
+    // занимает замена, остальное не трогаем.
+    if (plan.result) {
+      var cand = planCandidates();
+      var gone = plan.result.items.filter(function (e) { return cand.indexOf(e) < 0; });
+      if (gone.length) {
+        var keep = plan.result.items.filter(function (e) { return gone.indexOf(e) < 0; });
+        makePlan(keep, gone.length, gone.map(function (e) { return e.eventId; }));
+        if (!plan.result) { makePlan([], 0); }
+      }
+    }
+
+    var r = plan.result;
+    if (!r) {
+      box.appendChild(el('p', 'stub', candStub()));
+      return;
+    }
+
+    box.appendChild(planSummary(r));
+
+    var list = el('div', 'fav-list plan-list');
+    r.items.forEach(function (item) { list.appendChild(planRow(item)); });
+    box.appendChild(list);
+
+    var btns = el('div', 'plan-btns');
+    var n = plan.marked.length;
+    if (n) {
+      var swap = el('button', 'btn btn--buy');
+      swap.type = 'button';
+      swap.textContent = 'Заменить ' + n + ' ' + Fmt.plural(n, 'карточку', 'карточки', 'карточек');
+      swap.addEventListener('click', function () { replaceMarked(); render(); });
+      btns.appendChild(swap);
+    }
+    var again = el('button', 'btn ' + (n ? 'btn--ghost' : 'btn--buy'));
+    again.type = 'button';
+    again.textContent = 'Собрать заново';
+    again.addEventListener('click', function () { regenerate(); render(); });
+    btns.appendChild(again);
+    box.appendChild(btns);
+    plan.fresh = {};
+  }
+
+  function candStub() {
+    return planCandidates().length
+      ? 'На остаток не набрать и двух событий под эти фильтры. Смягчи их — вариантов станет больше.'
+      : NOTHING;
+  }
+
+  function planSummary(r) {
+    var card = el('div', 'plan-sum');
+    card.appendChild(el('span', 'plan-sum__label', 'Потратишь'));
+    var line = el('div', 'plan-sum__line');
+    line.appendChild(el('span', 'plan-sum__value', rub(r.spent)));
+    line.appendChild(el('span', 'plan-sum__of', 'из ' + rub(r.budget)));
+    card.appendChild(line);
+    card.appendChild(el('p', 'plan-sum__rest' + (r.ok ? '' : ' plan-sum__rest--far'), r.ok
+      ? (r.rest === 0 ? 'Баланс уйдёт до рубля' : 'Останется всего ' + rub(r.rest))
+      : 'Ближе не собрать: останется ' + rub(r.rest) + '. Смягчи фильтры — вариантов станет больше.'));
+
+    // Кошельки отдельно: кино тратится только на кино, и так видно, откуда деньги.
+    var wallets = el('div', 'plan-sum__wallets');
+    WALLET_ORDER.forEach(function (code) {
+      var spent = r.items.reduce(function (s, e) { return walletOf(e.category) === code ? s + e.priceRub : s; }, 0);
+      wallets.appendChild(el('span', null, WALLETS[code].title + ': ' + rub(spent) + ' из ' + rub(leftIn(code))));
+    });
+    card.appendChild(wallets);
+    if (leftIn('CINEMA') > 0 && !r.items.some(function (e) { return walletOf(e.category) === 'CINEMA'; })
+        && !planCandidates().some(function (e) { return walletOf(e.category) === 'CINEMA'; })) {
+      card.appendChild(el('p', 'plan-sum__note', 'Кино под фильтры не нашлось — деньги «Кино» не считаем.'));
+    }
+    return card;
+  }
+
+  function planRow(item) {
+    var on = plan.marked.indexOf(item.eventId) >= 0;
+    var row = el('article', 'row plan-row' + (on ? ' is-marked' : '') + (plan.fresh[item.eventId] ? ' is-new' : ''));
+    openOnTap(row, item, null);
+    row.appendChild(photo(item, 'row__photo'));
+
+    var main = el('div', 'row__main');
+    main.appendChild(el('span', 'badge', Cat.title(item.category)));
+    main.appendChild(el('h3', 'row__title', item.title));
+    main.appendChild(metaRow('calendar', whenText(item.startsAt)));
+    main.appendChild(metaRow('pin', item.venueName + ' · ' + Fmt.distance(item.distanceKm)));
+    main.appendChild(priceBlock(item, false));
+    row.appendChild(main);
+
+    var btns = el('div', 'row__btns');
+    var swap = el('button', 'btn btn--ghost plan-row__swap');
+    swap.type = 'button';
+    swap.setAttribute('aria-pressed', on ? 'true' : 'false');
+    swap.appendChild(icon(on ? 'close' : 'pencil', 16));
+    swap.appendChild(el('span', null, on ? 'Не менять' : 'Заменить'));
+    swap.addEventListener('click', function () {
+      plan.marked = on
+        ? plan.marked.filter(function (id) { return id !== item.eventId; })
+        : plan.marked.concat([item.eventId]);
+      render();
+    });
+    btns.appendChild(swap);
+    row.appendChild(btns);
+    return row;
+  }
+
   /* ---- Профиль --------------------------------------------------------- */
 
   function renderProfile() {
@@ -2037,7 +2216,7 @@
 
   function renderNav() {
     var map = {
-      'screen-feed': 'screen-feed', 'screen-swipe': 'screen-feed',
+      'screen-feed': 'screen-feed', 'screen-swipe': 'screen-feed', 'screen-plan': 'screen-feed',
       'screen-favorites': 'screen-favorites', 'screen-profile': 'screen-profile'
     };
     var active = map[state.screen];
@@ -2072,6 +2251,7 @@
   function render() {
     renderFilters('feed-filters');
     renderFilters('swipe-filters');
+    renderFilters('plan-filters');
     SCREENS.forEach(function (id) {
       var s = document.getElementById(id);
       if (s) { s.classList.toggle('is-active', id === state.screen); }
@@ -2084,6 +2264,7 @@
     renderFavorites();
     renderProfile();
     renderDetail();
+    renderPlan();
     state.entering = false;
     syncStats();
   }
@@ -2111,6 +2292,8 @@
   document.getElementById('feed-back').addEventListener('click', undoLast);
   document.getElementById('fav-back').addEventListener('click', function () { go('screen-feed'); });
   document.getElementById('stats-back').addEventListener('click', function () { go('screen-feed'); });
+  document.getElementById('feed-plan').addEventListener('click', openPlan);
+  document.getElementById('plan-back').addEventListener('click', function () { go('screen-feed'); });
   document.getElementById('swipe-skip').addEventListener('click', next);
 
   // Главный экран тянется за пальцем, а подборка выглядывает справа и едет
@@ -2162,7 +2345,7 @@
   // Открытый список фильтра закрывается нажатием мимо него. Клики внутри
   // ряда фильтров сюда не доходят: к этому моменту render() уже заменил
   // нажатую кнопку, и проверка «внутри ли клик» по ней не сработала бы.
-  ['feed-filters', 'swipe-filters'].forEach(function (id) {
+  ['feed-filters', 'swipe-filters', 'plan-filters'].forEach(function (id) {
     document.getElementById(id).addEventListener('click', function (e) { e.stopPropagation(); });
   });
   document.addEventListener('click', function () {
