@@ -914,21 +914,22 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 
 .origin-note { margin: 8px 0 0; padding: 0 var(--gutter); color: var(--ink-soft); font-size: 14px; line-height: 1.5; }
 
-/* Смена точки прямо в профиле — то же, что /address в боте. */
-.origin-edit { margin: 12px var(--gutter) 0; display: flex; flex-direction: column; gap: 8px; }
-.origin-edit[hidden] { display: none; }
+/* Смена точки — то же, что /address в боте. В профиле только кнопка,
+ * поле адреса открывается окном: постоянное поле ввода выглядело как анкета. */
+.origin-open { display: flex; width: calc(100% - 2 * var(--gutter)); height: 42px; margin: 12px var(--gutter) 0; flex: none; }
+.origin-open[hidden] { display: none; }
+.origin-open .ic { color: var(--violet); }
 .origin-edit__input {
-  height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-btn);
+  width: 100%; height: 46px; margin-top: 14px; padding: 0 14px; border: 0; border-radius: var(--r-btn);
   background: #fff; box-shadow: inset 0 0 0 1.5px var(--lilac);
-  font: inherit; font-size: 14px; color: var(--ink);
+  font: inherit; font-size: 15px; color: var(--ink);
 }
 .origin-edit__input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--violet); }
-.origin-edit__btns { display: flex; gap: 8px; }
-.origin-edit__btns .btn { height: 40px; font-size: 13px; }
-.origin-edit__btns .btn--ghost { flex: 0 0 auto; padding: 0 12px; gap: 5px; }
-.origin-edit__btns .btn--ghost .ic { color: var(--violet); }
-.origin-edit__btns .btn:disabled { opacity: .55; cursor: default; }
-.origin-edit__msg { margin: 0; min-height: 1em; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.origin-edit .btn--ghost .ic { color: var(--violet); }
+.origin-edit .btn:disabled { opacity: .55; cursor: default; }
+.origin-edit__msg { margin: 8px 0 0; min-height: 1em; font-size: 13px; line-height: 1.4; color: var(--ink-soft); }
+.origin-edit__msg:empty { display: none; }
+.origin-edit__save { margin-top: 14px; }
 .origin-edit__msg.is-error { color: #c0392b; }
 
 /* ---- Вход в ленту: счётчик и отказ ------------------------------------- */
@@ -997,7 +998,18 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .swipe-hint--like { left: 16px; background: var(--violet); color: #fff; }
 .swipe-hint--skip { right: 16px; background: #fff; color: var(--ink); }
 .bigcard.to-like .swipe-hint--like,
-.bigcard.to-skip .swipe-hint--skip { opacity: 1; transform: scale(1); }
+.bigcard.to-skip .swipe-hint--skip,
+.swipecard.to-like .swipe-hint--like,
+.swipecard.to-skip .swipe-hint--skip { opacity: 1; transform: scale(1); }
+
+/* Ответ кнопкой: кнопка пружинит, следующая карточка выезжает снизу. */
+.btn.is-pressed, .skip-pill.is-pressed { animation: btn-press .26s ease; }
+@keyframes btn-press { 40% { transform: scale(.92); } 100% { transform: scale(1); } }
+.bigcard.is-entering, .swipecard.is-entering { animation: card-enter .34s cubic-bezier(.2, .8, .2, 1); }
+@keyframes card-enter { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-pressed, .skip-pill.is-pressed, .bigcard.is-entering, .swipecard.is-entering { animation: none; }
+}
 
 .lead__hint {
   display: flex;

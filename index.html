@@ -154,17 +154,9 @@
       <div class="wallets" id="wallets"></div>
       <h2 class="section-title">Откуда считаем расстояние</h2>
       <p class="origin-note" id="profile-origin"></p>
-      <form class="origin-edit" id="origin-edit" hidden>
-        <input class="origin-edit__input" id="origin-input" type="text" maxlength="200" autocomplete="street-address"
-               placeholder="Новый адрес, например «Казань, Баумана 10»" aria-label="Новый адрес">
-        <div class="origin-edit__btns">
-          <button class="btn btn--primary" id="origin-find" type="submit">Сменить адрес</button>
-          <button class="btn btn--ghost" id="origin-geo" type="button">
-            <svg class="ic ic--16"><use href="#icon-pin"></use></svg><span>Геолокация</span>
-          </button>
-        </div>
-        <p class="origin-edit__msg" id="origin-msg" aria-live="polite"></p>
-      </form>
+      <button class="btn btn--ghost origin-open" id="origin-open" type="button" hidden>
+        <svg class="ic ic--16"><use href="#icon-pin"></use></svg><span>Сменить адрес</span>
+      </button>
       <h2 class="section-title">Куплено</h2>
       <div id="bought-list" class="fav-list"></div>
     </div>
@@ -201,6 +193,23 @@
         <button class="btn btn--ghost" id="ask-no" type="button">Ещё нет</button>
       </div>
     </div>
+  </div>
+
+  <div class="ask" id="origin-dialog" hidden>
+    <form class="ask__box origin-edit" id="origin-edit" role="dialog" aria-modal="true" aria-labelledby="origin-title">
+      <h2 class="ask__title" id="origin-title">Откуда поедешь?</h2>
+      <p class="ask__note">Напиши адрес или возьми геолокацию телефона — расстояние до событий посчитаю от этой точки.</p>
+      <input class="origin-edit__input" id="origin-input" type="text" maxlength="200" autocomplete="street-address"
+             placeholder="Например, «Казань, Баумана 10»" aria-label="Новый адрес">
+      <p class="origin-edit__msg" id="origin-msg" aria-live="polite"></p>
+      <button class="btn btn--buy ask__main origin-edit__save" id="origin-find" type="submit">Сменить адрес</button>
+      <div class="ask__row ask__row--tight">
+        <button class="btn btn--ghost" id="origin-geo" type="button">
+          <svg class="ic ic--16"><use href="#icon-pin"></use></svg><span>Геолокация</span>
+        </button>
+        <button class="btn btn--ghost" id="origin-cancel" type="button">Отмена</button>
+      </div>
+    </form>
   </div>
 
   <div class="ask" id="unlike" hidden>
