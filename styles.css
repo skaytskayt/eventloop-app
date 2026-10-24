@@ -437,22 +437,22 @@ body.is-dark { background: var(--card); }
 .ticket__venue { margin: 4px 0 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ticket .meta { margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
 .ticket .meta span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket__side { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+/* Плашка по ширине текста, а не во всю колонку. */
 .ticket__price {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 5px;
-  margin-top: 8px;
-  padding: 5px 10px;
-  border-radius: 12px;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 10px;
   background: #f1ecff;
   color: var(--violet);
-  font-size: 11px;
-  font-weight: 600;
+  white-space: nowrap;
 }
-.ticket__price .ic { align-self: center; }
 .ticket__price b { font-size: 14px; font-weight: 800; color: var(--ink); }
 .ticket__from { font-size: 12px; font-weight: 800; }
+/* «Останется …» — размером со строку адреса, но своим цветом. */
+.ticket__left { margin: 4px 0 0; font-size: 12px; font-weight: 500; color: var(--violet); }
 .ticket__btns { display: flex; gap: 8px; margin-top: 12px; }
 .ticket__btns .btn { height: 40px; font-size: 13px; gap: 6px; }
 .ticket__btns .btn--buy { flex: 1.25 1 0; }
@@ -533,7 +533,6 @@ body.is-dark { background: var(--card); }
 @media (prefers-reduced-motion: reduce) {
   .ticket__heart.is-liking, .ticket__heart.is-unliking,
   .ticket.is-leaving { animation: none; transition: none; }
-}
 }
 
 /* ---- Фильтры ------------------------------------------------------------
@@ -668,7 +667,10 @@ body.is-dark { background: var(--card); }
 }
 .welcome__art { display: block; width: 104%; max-width: 420px; margin: 0 0 18px; pointer-events: none; }
 .welcome__title { margin: 0; font-size: 31px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: #1c1650; }
-.welcome__sub { margin: 16px 0 0; font-size: 15px; line-height: 1.4; color: #928daa; }
+/* Два режима приложения — короткими строками: одной фразой с кавычками и
+ * тире подзаголовок читался тяжело. */
+.welcome__modes { margin: 16px 0 0; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; color: #5f5a7a; }
+.welcome__modes b { color: #1c1650; font-weight: 800; }
 .welcome__hint {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   margin-top: 30px; padding: 0;
@@ -682,12 +684,12 @@ body.is-dark { background: var(--card); }
 
 /* Появление главного экрана: Пушкин, заголовок, подзаголовок и подсказка
  * всплывают по очереди — экран собирается, а не вспыхивает целиком. */
-.welcome__art, .welcome__title, .welcome__sub, .welcome__hint, .welcome__cta {
+.welcome__art, .welcome__title, .welcome__modes, .welcome__hint, .welcome__cta {
   animation: welcome-in .7s cubic-bezier(.2, .7, .2, 1) both;
 }
 .welcome__art { animation-name: welcome-art-in; animation-duration: .9s; }
 .welcome__title { animation-delay: .15s; }
-.welcome__sub { animation-delay: .27s; }
+.welcome__modes { animation-delay: .27s; }
 .welcome__hint { animation-delay: .42s; }
 .welcome__cta { animation-delay: .5s; }
 @keyframes welcome-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
@@ -695,7 +697,7 @@ body.is-dark { background: var(--card); }
 
 @media (prefers-reduced-motion: reduce) {
   .welcome__arrow,
-  .welcome__art, .welcome__title, .welcome__sub, .welcome__hint, .welcome__cta { animation: none; }
+  .welcome__art, .welcome__title, .welcome__modes, .welcome__hint, .welcome__cta { animation: none; }
 }
 
 .done { margin: auto 0; padding: 8px var(--gutter) 24px; text-align: center; }

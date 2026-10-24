@@ -739,20 +739,20 @@
 
     var body = el('div', 'ticket__body');
     var top = el('div', 'ticket__top');
-    top.appendChild(photo(item, 'ticket__photo'));
+    // Цена — под фото: справа от него и так название, площадка и адрес.
+    var side = el('div', 'ticket__side');
+    side.appendChild(photo(item, 'ticket__photo'));
+    var price = el('div', 'ticket__price');
+    if (o.from) { price.appendChild(el('span', 'ticket__from', 'от')); }
+    price.appendChild(el('b', null, Fmt.money(item.priceRub)));
+    side.appendChild(price);
+    top.appendChild(side);
     var info = el('div', 'ticket__info');
     info.appendChild(el('span', 'badge', Cat.title(item.category)));
     info.appendChild(el('h3', 'ticket__title', item.title));
     info.appendChild(el('p', 'ticket__venue', item.venueName));
     info.appendChild(metaRow('pin', Fmt.distance(item.distanceKm) + (item.venueAddress ? ' · ' + item.venueAddress : '')));
-    var price = el('div', 'ticket__price');
-    price.appendChild(icon('ticket', 16));
-    var sum = el('b', null, Fmt.money(item.priceRub));
-    if (o.from) { price.appendChild(el('span', 'ticket__from', 'от')); }
-    price.appendChild(sum);
-    price.appendChild(el('span', 'ticket__note', 'по Пушкинской карте'));
-    info.appendChild(price);
-    if (o.note) { info.appendChild(el('p', 'row__left', o.note)); }
+    if (o.note) { info.appendChild(el('p', 'ticket__left', o.note)); }
     top.appendChild(info);
     body.appendChild(top);
 

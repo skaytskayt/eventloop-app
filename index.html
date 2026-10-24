@@ -11,7 +11,7 @@
 <meta name="eventloop-api" content="https://short-where-other-aurora.trycloudflare.com">
 <!-- ?v= — версия выкатки: GitHub Pages кеширует файлы на 10 минут, и без неё
      новая страница подтягивала старые стили и афишу. Меняется при каждой выкатке. -->
-<link rel="stylesheet" href="styles.css?v=20261024-3">
+<link rel="stylesheet" href="styles.css?v=20261024-4">
 </head>
 <body>
 
@@ -78,7 +78,10 @@
     <div class="welcome" id="welcome">
       <img class="welcome__art" src="assets/pushkin-main.png" alt="">
       <h1 class="welcome__title">Карта событий<br>уже ждёт тебя</h1>
-      <p class="welcome__sub">Два режима: листай карточки, как в&nbsp;знакомствах, — или&nbsp;«Потратить весь баланс»: подборка впритык к&nbsp;твоему балансу.</p>
+      <ul class="welcome__modes">
+        <li><b>Свайпы</b> — листай события, как&nbsp;анкеты</li>
+        <li><b>Весь баланс</b> — план на&nbsp;всю сумму карты</li>
+      </ul>
       <button class="welcome__hint" id="welcome-start" type="button" aria-label="Начать">
         <svg class="welcome__hand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 11v-1a2 2 0 0 0-4 0"/><path d="M14 10V9a2 2 0 0 0-4 0v1"/><path d="M10 9.5V4a2 2 0 0 0-4 0v10"/>
@@ -255,9 +258,9 @@
 
 <!-- Мост MAX: даёт window.WebApp с параметром запуска из кнопки бота. -->
 <script src="https://st.max.ru/js/max-web-app.js"></script>
-<script src="format.js?v=20261024-3"></script>
-<script src="data.js?v=20261024-3"></script>
-<script src="plan.js?v=20261024-3"></script>
-<script src="app.js?v=20261024-3"></script>
+<script src="format.js?v=20261024-4"></script>
+<script src="data.js?v=20261024-4"></script>
+<script src="plan.js?v=20261024-4"></script>
+<script src="app.js?v=20261024-4"></script>
 </body>
 </html>
