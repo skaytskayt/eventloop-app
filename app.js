@@ -1557,6 +1557,7 @@
     return ticket(item, {
       buttons: [buyButton(item), routeGhost(item)],
       stub: [swap],
+      from: true,
       cls: 'plan-row' + (on ? ' is-marked' : '') + (plan.fresh[item.eventId] ? ' is-new' : '')
     });
   }
@@ -1678,14 +1679,9 @@
     // Последняя покупка сверху: к ней и возвращаются, если нажали «Да» зря.
     state.bought.slice().reverse().forEach(function (b) {
       var item = byEventId(b.eventId);
-      var undo = el('button', 'btn btn--ghost', 'Отменить покупку');
-      undo.type = 'button';
-      undo.addEventListener('click', function (e) {
-        // Билет целиком открывает мероприятие, поэтому клик по кнопке
-        // нельзя отдавать наверх.
-        e.stopPropagation();
-        cancelPurchase(b.eventId);
-      });
+      // Крестик, а не кнопка в ряду: отмена — редкое действие, и случайное
+      // касание не должно её совершать, поэтому сначала переспрашиваем.
+      var undo = stubButton('close', 'Отменить покупку', 'ticket__drop', function () { askUnbuy(item, b); });
       // Событие выпало из афиши — билет нарисовать не из чего, но отменить
       // покупку и вернуть деньги на кошелёк человек всё равно должен мочь.
       if (!item) {
@@ -1693,13 +1689,14 @@
         var main = el('div', 'row__main');
         main.appendChild(el('h3', 'row__title', 'Мероприятие'));
         main.appendChild(el('p', 'row__left', 'Списано ' + Fmt.money(b.priceRub)));
-        main.appendChild(undo);
         row.appendChild(main);
+        row.appendChild(undo);
         box.appendChild(row);
         return;
       }
       box.appendChild(ticket(item, {
-        buttons: [undo, routeGhost(item)],
+        buttons: [routeGhost(item)],
+        stub: [undo],
         note: 'Списано ' + Fmt.money(b.priceRub) + ' с «' + WALLETS[b.wallet].title + '»'
       }));
     });
@@ -1751,6 +1748,26 @@
     unlikeDone = null;
     document.getElementById('unlike').hidden = true;
     if (done && choice !== 'keep') { done(choice); }
+  }
+
+  /* ---- Подтверждение отмены покупки ------------------------------------
+   * Как с «Пойду»: главная кнопка — «Оставить», мимо окна и Esc — тоже. */
+  var unbuyId = null;
+
+  function askUnbuy(item, b) {
+    unbuyId = b.eventId;
+    document.getElementById('unbuy-event').textContent = item ? item.title + ' · ' + item.venueName : 'Мероприятие';
+    document.getElementById('unbuy-note').textContent = Fmt.money(b.priceRub) + ' вернутся на «'
+      + WALLETS[b.wallet].title + '», а событие — в «Пойду».';
+    document.getElementById('unbuy').hidden = false;
+    document.getElementById('unbuy-keep').focus();
+  }
+
+  function closeUnbuy(cancel) {
+    var id = unbuyId;
+    unbuyId = null;
+    document.getElementById('unbuy').hidden = true;
+    if (cancel && id !== null) { cancelPurchase(id); }
   }
 
   function closeAsk() {
@@ -2396,6 +2413,12 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !document.getElementById('ask').hidden) { declinePurchase(); }
     if (e.key === 'Escape' && !document.getElementById('unlike').hidden) { closeUnlike('keep'); }
+    if (e.key === 'Escape' && !document.getElementById('unbuy').hidden) { closeUnbuy(false); }
+  });
+  document.getElementById('unbuy-keep').addEventListener('click', function () { closeUnbuy(false); });
+  document.getElementById('unbuy-drop').addEventListener('click', function () { closeUnbuy(true); });
+  document.getElementById('unbuy').addEventListener('click', function (e) {
+    if (e.target === e.currentTarget) { closeUnbuy(false); }
   });
   document.getElementById('unlike-keep').addEventListener('click', function () { closeUnlike('keep'); });
   document.getElementById('unlike-save').addEventListener('click', function () { closeUnlike('saved'); });

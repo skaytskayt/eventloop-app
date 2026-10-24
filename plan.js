@@ -44,13 +44,16 @@ function buildPlan(opts) {
   var random = opts.random || Math.random;
   var keepIds = {};
   keep.forEach(function (e) { keepIds[e.eventId] = true; });
+  // Один фильм в двух кинотеатрах — это два события, но в подборке повтор.
+  var keepTitles = {};
+  keep.forEach(function (e) { keepTitles[titleKey(e)] = true; });
 
   var base = { CINEMA: 0, OTHER: 0 };
   keep.forEach(function (e) { base[opts.walletOf(e.category)] += e.priceRub; });
 
   var pool = opts.items.filter(function (e) {
     var w = opts.walletOf(e.category);
-    return !keepIds[e.eventId] && e.priceRub > 0 && base[w] + e.priceRub <= opts.left[w];
+    return !keepIds[e.eventId] && !keepTitles[titleKey(e)] && e.priceRub > 0 && base[w] + e.priceRub <= opts.left[w];
   });
 
   // Сначала без уже показанного: «собрать заново» должно давать новое. Но
@@ -88,6 +91,8 @@ function buildPlan(opts) {
         if (n < 1 || n > max || n + keep.length < 2) { return; }
         var rest = a.rest + b.rest;
         if (rest > Math.max(PLAN_SLACK, bestRest + 100)) { return; }
+        // Фильм и спектакль бывают с одним названием («Морозко»).
+        if (a.list.some(function (e) { return sameTitle(b.list, e); })) { return; }
         found.push({ a: a, b: b, n: n, rest: rest });
         if (rest < bestRest) { bestRest = rest; }
       });
@@ -123,7 +128,7 @@ function buildPlan(opts) {
         for (var i = start; i < order.length; i++) {
           if (++steps > PLAN_STEPS || found >= PLAN_ENOUGH) { return; }
           var s = spent + order[i].priceRub;
-          if (s > cap) { continue; }
+          if (s > cap || sameTitle(chosen, order[i])) { continue; }
           chosen.push(order[i]);
           if (chosen.length < size) {
             walk(i + 1, chosen, s);
@@ -148,6 +153,15 @@ function buildPlan(opts) {
     }
     return list;
   }
+}
+
+function titleKey(e) {
+  return String(e.title).trim().toLowerCase().replace(/ё/g, 'е');
+}
+
+function sameTitle(list, e) {
+  var key = titleKey(e);
+  return list.some(function (x) { return titleKey(x) === key; });
 }
 
 function planSum(list) {

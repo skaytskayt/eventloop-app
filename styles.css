@@ -665,39 +665,53 @@ body.is-dark { background: var(--card); }
   padding: 24px var(--gutter) 40px; text-align: center;
   touch-action: pan-y; user-select: none; -webkit-user-select: none;
 }
-.welcome__art { display: block; width: 104%; max-width: 420px; margin: 0 0 18px; pointer-events: none; }
-.welcome__title { margin: 0; font-size: 31px; line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: #1c1650; }
-/* Два режима приложения — короткими строками: одной фразой с кавычками и
- * тире подзаголовок читался тяжело. */
-.welcome__modes { margin: 16px 0 0; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; color: #5f5a7a; }
-.welcome__modes b { color: #1c1650; font-weight: 800; }
+/* Пушкин ужимается по высоте: под ним ещё две карточки режимов, и на низком
+ * экране без этого подсказка «Листай» уезжала бы вниз. */
+.welcome__art { display: block; width: auto; max-width: 104%; height: auto; max-height: 30vh; max-height: 30dvh; margin: 0 0 14px; pointer-events: none; }
+.welcome__title { margin: 0; font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -.01em; color: #1c1650; }
+
+/* Два режима — карточками: слева значок, справа название и пояснение. */
+.welcome__modes { width: 100%; max-width: 420px; margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.mode { display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--surface); border-radius: 20px; box-shadow: 0 2px 12px rgba(30,20,80,.06); text-align: left; }
+.mode__art {
+  flex: none; width: 76px; height: 76px; border-radius: 16px; background: #ece7ff; color: var(--violet);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+}
+.mode__pair { display: flex; gap: 5px; }
+.mode__chip { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #fff; color: #8a84a6; box-shadow: inset 0 0 0 1.5px #d9d2f5; }
+.mode__chip--on { background: var(--violet); color: #fff; box-shadow: none; }
+.mode__swap { width: 20px; height: 20px; }
+.mode__wallet { width: 28px; height: 28px; }
+.mode__tickets { display: flex; gap: 3px; }
+.mode__tickets .ic { width: 14px; height: 14px; }
+.mode__text { min-width: 0; font-size: 14px; line-height: 1.35; color: #5f5a7a; }
+.mode__text b { display: block; margin-bottom: 3px; font-size: 17px; line-height: 1.2; font-weight: 800; color: #1c1650; }
+
 .welcome__hint {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  margin-top: 30px; padding: 0;
+  margin-top: 18px; padding: 6px 0;
   border: 0; background: none; color: var(--violet);
-  cursor: pointer; font: inherit;
+  cursor: pointer; font: inherit; font-size: 16px; font-weight: 800;
 }
-.welcome__hand { width: 32px; height: 32px; }
-.welcome__arrow { width: 24px; height: 24px; animation: welcome-nudge 1.6s ease-in-out infinite; }
-.welcome__cta { margin: 10px 0 0; font-size: 14px; font-weight: 700; color: var(--violet); }
-@keyframes welcome-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+.welcome__hand { width: 22px; height: 22px; }
+.welcome__arrow { width: 20px; height: 20px; animation: welcome-nudge 1.6s ease-in-out infinite; }
+@keyframes welcome-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
 
-/* Появление главного экрана: Пушкин, заголовок, подзаголовок и подсказка
+/* Появление главного экрана: Пушкин, заголовок, режимы и подсказка
  * всплывают по очереди — экран собирается, а не вспыхивает целиком. */
-.welcome__art, .welcome__title, .welcome__modes, .welcome__hint, .welcome__cta {
+.welcome__art, .welcome__title, .welcome__modes, .welcome__hint {
   animation: welcome-in .7s cubic-bezier(.2, .7, .2, 1) both;
 }
 .welcome__art { animation-name: welcome-art-in; animation-duration: .9s; }
 .welcome__title { animation-delay: .15s; }
 .welcome__modes { animation-delay: .27s; }
 .welcome__hint { animation-delay: .42s; }
-.welcome__cta { animation-delay: .5s; }
 @keyframes welcome-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @keyframes welcome-art-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .welcome__arrow,
-  .welcome__art, .welcome__title, .welcome__modes, .welcome__hint, .welcome__cta { animation: none; }
+  .welcome__art, .welcome__title, .welcome__modes, .welcome__hint { animation: none; }
 }
 
 .done { margin: auto 0; padding: 8px var(--gutter) 24px; text-align: center; }
