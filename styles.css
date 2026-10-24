@@ -694,7 +694,13 @@ body.is-dark { background: var(--card); }
   color: #fff;
   font-size: 13px;
   font-weight: 600;
-  white-space: nowrap;
+  /* Короткие подсказки — одной строкой, длинные (адрес точки) переносятся
+   * и не вылезают за край экрана. */
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--gutter));
+  text-align: center;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 10px);
