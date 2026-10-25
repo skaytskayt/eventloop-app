@@ -34,7 +34,9 @@
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
   // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], baseIds: [], editWallet: null, origin: null, originName: null, formAt: null };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], baseIds: [], editWallet: null, origin: null, originName: null, formAt: null,
+    // У «Весь баланс» свои фильтры: настройки ленты на подборку не влияют.
+    planF: { cats: [], date: 'ANY', km: 0 } };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -86,7 +88,7 @@
         bought: state.bought, pending: state.pending, card: state.card,
         baseIds: state.baseIds, undo: state.undo,
         cats: state.cats, date: state.date, radius: state.km, origin: state.origin, originName: state.originName,
-        formAt: state.formAt
+        formAt: state.formAt, planF: state.planF
       })); } catch (e) { /* приватный режим */ }
   }
 
@@ -119,6 +121,11 @@
       // по умолчанию, а теперь по умолчанию расстояние неважно.
       if (v && KMS.indexOf(v.radius) >= 0) { state.km = v.radius; }
       if (v && typeof v.formAt === 'number') { state.formAt = v.formAt; }
+      if (v && v.planF) {
+        if (v.planF.cats instanceof Array) { state.planF.cats = v.planF.cats; }
+        if (DATES[v.planF.date]) { state.planF.date = v.planF.date; }
+        if (KMS.indexOf(v.planF.km) >= 0) { state.planF.km = v.planF.km; }
+      }
       if (v && v.origin && validOrigin(v.origin.lat, v.origin.lon)) {
         state.origin = { lat: v.origin.lat, lon: v.origin.lon };
         if (typeof v.originName === 'string') { state.originName = v.originName.slice(0, 128); }
@@ -517,8 +524,9 @@
 
   /* Всё, что подходит под фильтры, вместе с уже оценённым: по нему считается
    * «сколько из скольких», иначе счётчик показывал бы дробь от всей афиши. */
-  function pool() {
-    return loadFeed().filter(fits);
+  // f — набор фильтров: лента (state) или «Весь баланс» (state.planF).
+  function pool(f) {
+    return loadFeed().filter(function (e) { return fits(e, f || state); });
   }
 
   /* Колода по вкусу: сверху то, что похоже на уже отмеченное. Без истории —
@@ -599,10 +607,10 @@
     return 'Похоже на «' + name + '»';
   }
 
-  function fits(e) {
-    if (state.cats.length && state.cats.indexOf(e.category) < 0) { return false; }
-    if (state.km && e.distanceKm > state.km) { return false; }
-    var b = bounds(state.date, Date.now());
+  function fits(e, f) {
+    if (f.cats.length && f.cats.indexOf(e.category) < 0) { return false; }
+    if (f.km && e.distanceKm > f.km) { return false; }
+    var b = bounds(f.date, Date.now());
     var t = new Date(e.startsAt).getTime();
     return t >= b.from && (b.until === null || t < b.until);
   }
@@ -960,13 +968,14 @@
     var host = document.getElementById(hostId);
     host.replaceChildren();
 
+    var f = hostId === 'plan-filters' ? state.planF : state;
     var row = el('div', 'drops');
-    row.appendChild(drop('date', DATES[state.date], state.date !== 'ANY'));
-    row.appendChild(drop('cats', catsLabel(), state.cats.length > 0));
-    row.appendChild(drop('km', state.km ? kmLabel(state.km) : 'Расстояние', state.km !== DEFAULT_KM));
+    row.appendChild(drop('date', DATES[f.date], f.date !== 'ANY'));
+    row.appendChild(drop('cats', catsLabel(f), f.cats.length > 0));
+    row.appendChild(drop('km', f.km ? kmLabel(f.km) : 'Расстояние', f.km !== DEFAULT_KM));
     host.appendChild(row);
 
-    if (state.open) { host.appendChild(menu(state.open)); }
+    if (state.open) { host.appendChild(menu(state.open, f)); }
   }
 
   /* Кнопка ряда подсвечивается, когда фильтр отличается от значения по
@@ -985,24 +994,24 @@
 
   // Дата и радиус — один вариант, список закрывается сразу. Категорий можно
   // отметить несколько, поэтому их список остаётся открытым.
-  function menu(kind) {
+  function menu(kind, f) {
     var box = el('div', 'menu');
     if (kind === 'date') {
       Object.keys(DATES).forEach(function (code) {
-        box.appendChild(option(DATES[code], state.date === code, function () { state.date = code; applyFilters(true); }));
+        box.appendChild(option(DATES[code], f.date === code, function () { f.date = code; applyFilters(true); }));
       });
     } else if (kind === 'km') {
       KMS.forEach(function (km) {
-        box.appendChild(option(kmLabel(km), state.km === km, function () { state.km = km; applyFilters(true); }));
+        box.appendChild(option(kmLabel(km), f.km === km, function () { f.km = km; applyFilters(true); }));
       });
     } else {
-      box.appendChild(option('Все категории', !state.cats.length, function () { state.cats = []; applyFilters(false); }));
+      box.appendChild(option('Все категории', !f.cats.length, function () { f.cats = []; applyFilters(false); }));
       CATS.forEach(function (code) {
-        var on = state.cats.indexOf(code) >= 0;
+        var on = f.cats.indexOf(code) >= 0;
         box.appendChild(option(Cat.title(code), on, function () {
-          state.cats = on
-            ? state.cats.filter(function (c) { return c !== code; })
-            : state.cats.concat([code]);
+          f.cats = on
+            ? f.cats.filter(function (c) { return c !== code; })
+            : f.cats.concat([code]);
           applyFilters(false);
         }));
       });
@@ -1092,10 +1101,10 @@
     return b;
   }
 
-  function catsLabel() {
-    if (!state.cats.length) { return 'Категории'; }
-    var first = Cat.title(state.cats[0]);
-    return state.cats.length === 1 ? first : first + ' +' + (state.cats.length - 1);
+  function catsLabel(f) {
+    if (!f.cats.length) { return 'Категории'; }
+    var first = Cat.title(f.cats[0]);
+    return f.cats.length === 1 ? first : first + ' +' + (f.cats.length - 1);
   }
 
   /* ---- Экран 1: подборка ---------------------------------------------- */
@@ -1454,18 +1463,18 @@
    * 2–3 события (с кино — до 5), которые вместе съедают остаток почти целиком (см. plan.js).
    * Подборка живёт только в памяти: это черновик, а не отметка. Не нравится
    * целиком — собирается заново; отмеченные карточки меняются, остальные
-   * остаются. Фильтры общие с подборкой, и их смена собирает всё заново. */
+   * остаются. Фильтры свои (state.planF), не ленты, и их смена собирает всё заново. */
   var plan = null;
   var planSeen = {};
 
   function planCandidates() {
-    return pool().filter(function (e) {
+    return pool(state.planF).filter(function (e) {
       return e.priceRub > 0 && !isBought(e.eventId) && state.disliked.indexOf(e.eventId) < 0;
     });
   }
 
   function planSig() {
-    return JSON.stringify([cityCode(), state.date, state.cats, state.km, leftIn('CINEMA'), leftIn('OTHER')]);
+    return JSON.stringify([cityCode(), state.planF.date, state.planF.cats, state.planF.km, leftIn('CINEMA'), leftIn('OTHER')]);
   }
 
   function planLeft() {
