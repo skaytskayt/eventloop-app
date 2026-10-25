@@ -11,7 +11,7 @@
 <meta name="eventloop-api" content="https://platforms-fed-patrick-george.trycloudflare.com">
 <!-- ?v= — версия выкатки: GitHub Pages кеширует файлы на 10 минут, и без неё
      новая страница подтягивала старые стили и афишу. Меняется при каждой выкатке. -->
-<link rel="stylesheet" href="styles.css?v=20261025-4">
+<link rel="stylesheet" href="styles.css?v=20261025-5">
 </head>
 <body>
 
@@ -118,15 +118,6 @@
 
   <section id="screen-feed" class="screen screen--light">
     <div class="screen__scroll">
-      <button class="plan-banner" id="feed-plan" type="button">
-        <span class="plan-banner__ic" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M19 7V5.5A1.5 1.5 0 0 0 17.5 4h-12A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M14 10h6.5v6H14a3 3 0 0 1 0-6Z"/>
-          </svg>
-        </span>
-        <span class="plan-banner__text"><b>Потратить весь баланс</b><span id="feed-plan-sum"></span></span>
-        <svg class="plan-banner__go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
       <div class="filters" id="feed-filters"></div>
       <div class="deck-head">
         <button class="back-card" id="feed-back" type="button" hidden aria-label="Вернуть предыдущую карточку">
@@ -136,6 +127,15 @@
         <span class="swipe__track"><i id="feed-bar"></i></span>
       </div>
       <div id="feed-card" class="feed-card-slot"></div>
+      <button class="plan-banner" id="feed-plan" type="button">
+        <span class="plan-banner__ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 7V5.5A1.5 1.5 0 0 0 17.5 4h-12A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M14 10h6.5v6H14a3 3 0 0 1 0-6Z"/>
+          </svg>
+        </span>
+        <span class="plan-banner__text"><b>Потратить весь баланс</b><span id="feed-plan-sum"></span></span>
+        <svg class="plan-banner__go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
     </div>
   </section>
 
@@ -297,9 +297,9 @@
 
 <!-- Мост MAX: даёт window.WebApp с параметром запуска из кнопки бота. -->
 <script src="https://st.max.ru/js/max-web-app.js"></script>
-<script src="format.js?v=20261025-4"></script>
-<script src="data.js?v=20261025-4"></script>
-<script src="plan.js?v=20261025-4"></script>
-<script src="app.js?v=20261025-4"></script>
+<script src="format.js?v=20261025-5"></script>
+<script src="data.js?v=20261025-5"></script>
+<script src="plan.js?v=20261025-5"></script>
+<script src="app.js?v=20261025-5"></script>
 </body>
 </html>
