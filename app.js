@@ -1596,7 +1596,7 @@
     box.appendChild(img);
     box.appendChild(el('h2', 'done__title', 'Баланс закончился'));
     box.appendChild(el('p', 'done__sub', 'Денег на карте больше не хватает ни на одно мероприятие. Купленные билеты — в профиле.'));
-    var b = el('button', 'btn btn--ghost done__btn', 'Открыть профиль');
+    var b = el('button', 'btn btn--ghost done__btn done__btn--small', 'Открыть профиль');
     b.type = 'button';
     b.addEventListener('click', function () { go('screen-profile'); });
     box.appendChild(b);

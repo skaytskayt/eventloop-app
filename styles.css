@@ -725,6 +725,9 @@ body.is-dark { background: var(--card); }
 .done__sub { margin: 14px 0 0; font-size: 14px; line-height: 1.45; color: #8d88a4; }
 .done .done__btn { flex: none; width: 100%; margin-top: 12px; }
 .done .done__btn:first-of-type { margin-top: 26px; }
+/* Второстепенный переход — по ширине текста, а не на весь экран. */
+.done .done__btn--small { width: auto; height: 38px; padding: 0 20px; font-size: 13px; margin-top: 20px; }
+.done .done__btn--small:first-of-type { margin-top: 20px; }
 /* Тот же блок внутри подборки: отступы по бокам уже даёт слот карточки. */
 .done--inline { margin: 0; padding: 44px 0 16px; }
 .done--inline .done__art { max-width: 260px; }
