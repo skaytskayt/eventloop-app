@@ -1598,14 +1598,22 @@
     plan.fresh = {};
   }
 
-  /* Остатка не хватает ни на одно платное событие афиши — фильтры тут
-   * ни при чём, смягчать их бесполезно. */
-  function broke() {
+  /* Подборку не собрать даже по всей афише, без фильтров, — дело в деньгах,
+   * а не в фильтрах, и смягчать их бесполезно. */
+  function affordable() {
     var now = Date.now();
-    return !loadFeed().some(function (e) {
-      return e.priceRub > 0 && e.priceRub <= leftIn(walletOf(e.category))
-        && new Date(e.startsAt).getTime() >= now && !isBought(e.eventId);
+    return loadFeed().filter(function (e) {
+      return e.priceRub > 0 && new Date(e.startsAt).getTime() >= now
+        && !isBought(e.eventId) && state.disliked.indexOf(e.eventId) < 0;
     });
+  }
+
+  function broke() {
+    return !Plan.build({ items: affordable(), left: planLeft(), walletOf: walletOf, keep: [], avoid: {}, prefer: 0 });
+  }
+
+  function noneAtAll() {
+    return !affordable().some(function (e) { return e.priceRub <= leftIn(walletOf(e.category)); });
   }
 
   // Та же картинка, что у закончившейся подборки.
@@ -1615,8 +1623,11 @@
     img.src = 'assets/pushkin-card-3d.png';
     img.alt = '';
     box.appendChild(img);
-    box.appendChild(el('h2', 'done__title', 'Баланс закончился'));
-    box.appendChild(el('p', 'done__sub', 'Денег на карте больше не хватает ни на одно мероприятие. Купленные билеты — в профиле.'));
+    var none = noneAtAll();
+    box.appendChild(el('h2', 'done__title', none ? 'Баланс закончился' : 'Денег не хватает'));
+    box.appendChild(el('p', 'done__sub', none
+      ? 'Денег на карте больше не хватает ни на одно мероприятие. Купленные билеты — в профиле.'
+      : 'Остатка на карте не хватает, чтобы собрать подборку. На отдельное мероприятие ещё хватит — поищи его в ленте.'));
     var b = el('button', 'btn btn--ghost done__btn done__btn--small', 'Открыть профиль');
     b.type = 'button';
     b.addEventListener('click', function () { go('screen-profile'); });
