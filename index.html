@@ -11,7 +11,7 @@
 <meta name="eventloop-api" content="https://platforms-fed-patrick-george.trycloudflare.com">
 <!-- ?v= — версия выкатки: GitHub Pages кеширует файлы на 10 минут, и без неё
      новая страница подтягивала старые стили и афишу. Меняется при каждой выкатке. -->
-<link rel="stylesheet" href="styles.css?v=20261025-11">
+<link rel="stylesheet" href="styles.css?v=20261025-12">
 </head>
 <body>
 
@@ -267,6 +267,18 @@
     </div>
   </div>
 
+  <div class="ask" id="short" hidden>
+    <div class="ask__box" role="dialog" aria-modal="true" aria-labelledby="short-title">
+      <h2 class="ask__title" id="short-title">Не хватает баланса Пушкинской карты</h2>
+      <p class="ask__event" id="short-event"></p>
+      <p class="ask__note" id="short-note"></p>
+      <a class="btn btn--buy ask__main" id="short-go" target="_blank" rel="noopener noreferrer">Всё равно перейти</a>
+      <div class="ask__row ask__row--tight">
+        <button class="btn btn--ghost" id="short-cancel" type="button">Отмена</button>
+      </div>
+    </div>
+  </div>
+
   <nav class="nav" id="bottom-nav">
     <button class="nav__item" data-nav="screen-feed" type="button">
       <svg class="ic ic--22"><use href="#icon-home"></use></svg><span>Подборка</span>
@@ -283,9 +295,9 @@
 
 <!-- Мост MAX: даёт window.WebApp с параметром запуска из кнопки бота. -->
 <script src="https://st.max.ru/js/max-web-app.js"></script>
-<script src="format.js?v=20261025-11"></script>
-<script src="data.js?v=20261025-11"></script>
-<script src="plan.js?v=20261025-11"></script>
-<script src="app.js?v=20261025-11"></script>
+<script src="format.js?v=20261025-12"></script>
+<script src="data.js?v=20261025-12"></script>
+<script src="plan.js?v=20261025-12"></script>
+<script src="app.js?v=20261025-12"></script>
 </body>
 </html>

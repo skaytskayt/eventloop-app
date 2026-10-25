@@ -828,7 +828,12 @@
     buy.target = '_blank';
     buy.rel = 'noopener noreferrer';
     buy.textContent = 'Купить билет';
-    buy.addEventListener('click', function () {
+    buy.addEventListener('click', function (e) {
+      if (item.priceRub > leftIn(walletOf(item.category))) {
+        e.preventDefault();
+        askShort(item);
+        return;
+      }
       state.pending = item.eventId;
       save();
       send('CLICK_BUY', item.eventId);
@@ -1544,7 +1549,7 @@
 
     var r = plan.result;
     if (!r) {
-      box.appendChild(el('p', 'stub', candStub()));
+      box.appendChild(broke() ? brokeBanner() : el('p', 'stub', candStub()));
       return;
     }
 
@@ -1570,6 +1575,32 @@
     btns.appendChild(again);
     box.appendChild(btns);
     plan.fresh = {};
+  }
+
+  /* Остатка не хватает ни на одно платное событие афиши — фильтры тут
+   * ни при чём, смягчать их бесполезно. */
+  function broke() {
+    var now = Date.now();
+    return !loadFeed().some(function (e) {
+      return e.priceRub > 0 && e.priceRub <= leftIn(walletOf(e.category))
+        && new Date(e.startsAt).getTime() >= now && !isBought(e.eventId);
+    });
+  }
+
+  // Та же картинка, что у закончившейся подборки.
+  function brokeBanner() {
+    var box = el('div', 'done done--inline');
+    var img = el('img', 'done__art');
+    img.src = 'assets/pushkin-card-3d.png';
+    img.alt = '';
+    box.appendChild(img);
+    box.appendChild(el('h2', 'done__title', 'Баланс закончился'));
+    box.appendChild(el('p', 'done__sub', 'Денег на карте больше не хватает ни на одно мероприятие. Купленные билеты — в профиле.'));
+    var b = el('button', 'btn btn--ghost done__btn', 'Открыть профиль');
+    b.type = 'button';
+    b.addEventListener('click', function () { go('screen-profile'); });
+    box.appendChild(b);
+    return box;
   }
 
   function candStub() {
@@ -1807,6 +1838,30 @@
     unlikeDone = null;
     document.getElementById('unlike').hidden = true;
     if (done && choice !== 'keep') { done(choice); }
+  }
+
+  /* ---- Билет дороже остатка ---------------------------------------------
+   * По Пушкинской карте его не купить: предупреждаем, что с карты ничего не
+   * спишется. Перейти на кассу всё равно можно — за свои деньги, поэтому
+   * про покупку потом не спрашиваем и баланс не трогаем. */
+  function askShort(item) {
+    var wallet = walletOf(item.category);
+    document.getElementById('short-event').textContent = item.title + ' · ' + Fmt.money(item.priceRub);
+    document.getElementById('short-note').textContent = 'На карте осталось ' + rub(leftIn(wallet))
+      + ' («' + WALLETS[wallet].title + '»). Оплатить билет Пушкинской картой не получится, '
+      + 'и сумма с неё не спишется — только своими деньгами.';
+    var go = document.getElementById('short-go');
+    go.href = item.ticketUrl;
+    go.onclick = function () {
+      closeShort();
+      send('CLICK_BUY', item.eventId);
+    };
+    document.getElementById('short').hidden = false;
+    document.getElementById('short-cancel').focus();
+  }
+
+  function closeShort() {
+    document.getElementById('short').hidden = true;
   }
 
   /* ---- Подтверждение отмены покупки ------------------------------------
@@ -2485,6 +2540,11 @@
     if (e.key === 'Escape' && !document.getElementById('ask').hidden) { declinePurchase(); }
     if (e.key === 'Escape' && !document.getElementById('unlike').hidden) { closeUnlike('keep'); }
     if (e.key === 'Escape' && !document.getElementById('unbuy').hidden) { closeUnbuy(false); }
+    if (e.key === 'Escape' && !document.getElementById('short').hidden) { closeShort(); }
+  });
+  document.getElementById('short-cancel').addEventListener('click', closeShort);
+  document.getElementById('short').addEventListener('click', function (e) {
+    if (e.target === e.currentTarget) { closeShort(); }
   });
   document.getElementById('unbuy-keep').addEventListener('click', function () { closeUnbuy(false); });
   document.getElementById('unbuy-drop').addEventListener('click', function () { closeUnbuy(true); });
