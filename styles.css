@@ -679,16 +679,8 @@ body.is-dark { background: var(--card); }
   touch-action: pan-y; user-select: none; -webkit-user-select: none;
 }
 /* Пушкин ужимается по высоте: под ним ещё две карточки режимов, и на низком
- * экране без этого подсказка «Листай» уезжала бы вниз. Он — фон под
- * заголовком: книзу растворяется, и заголовок заходит на него снизу. */
-.welcome__art {
-  position: relative; z-index: -1;
-  display: block; width: auto; max-width: 104%; height: auto; max-height: 30vh; max-height: 30dvh;
-  margin: 0 0 -7vh; margin: 0 0 -7dvh;
-  opacity: .5; pointer-events: none;
-  -webkit-mask-image: linear-gradient(#000 55%, transparent 100%);
-  mask-image: linear-gradient(#000 55%, transparent 100%);
-}
+ * экране без этого подсказка «Листай» уезжала бы вниз. */
+.welcome__art { display: block; width: auto; max-width: 104%; height: auto; max-height: 30vh; max-height: 30dvh; margin: 0 0 14px; pointer-events: none; }
 .welcome__title { margin: 0; font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -.01em; color: #1c1650; }
 
 /* Два режима — карточками: слева значок, справа название и пояснение. */
