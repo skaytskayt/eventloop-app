@@ -34,7 +34,7 @@
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
   // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null, formAt: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -85,7 +85,8 @@
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
         spentBase: state.spentBase, undo: state.undo,
-        cats: state.cats, date: state.date, radius: state.km, origin: state.origin, originName: state.originName
+        cats: state.cats, date: state.date, radius: state.km, origin: state.origin, originName: state.originName,
+        formAt: state.formAt
       })); } catch (e) { /* приватный режим */ }
   }
 
@@ -111,6 +112,7 @@
       // Поле «radius», а не прежнее «km»: там у всех записалось «до 10 км»
       // по умолчанию, а теперь по умолчанию расстояние неважно.
       if (v && KMS.indexOf(v.radius) >= 0) { state.km = v.radius; }
+      if (v && typeof v.formAt === 'number') { state.formAt = v.formAt; }
       if (v && v.origin && validOrigin(v.origin.lat, v.origin.lon)) {
         state.origin = { lat: v.origin.lat, lon: v.origin.lon };
         if (typeof v.originName === 'string') { state.originName = v.originName.slice(0, 128); }
@@ -180,6 +182,7 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (me) {
           // Кнопка бота уже значит, что анкета пройдена, — тогда нужна только точка.
+          if (me) { applyForm(me); }
           if (!fromBot && me && me.registered === false) { closeAsk(); go('screen-register'); return; }
           // Точку сменили в боте (/address), а открыли старой кнопкой или из меню —
           // в ссылке прежние координаты. Сервер знает свежие.
@@ -195,6 +198,22 @@
         })
         .catch(function () { /* нет связи — пускаем как есть */ });
     } catch (e) { /* WebView без fetch */ }
+  }
+
+  /* Анкету в боте заполнили заново: покупки были от прежнего баланса —
+   * забываем их, баланс — названный в анкете. Сервер прежние покупки уже
+   * не отдаёт. Новое время анкеты обрабатываем один раз. */
+  function applyForm(me) {
+    if (typeof me.formAt !== 'number' || me.formAt === state.formAt) { return; }
+    state.formAt = me.formAt;
+    state.bought = [];
+    if (me.registered && validAmount(me.cinemaRub, 'CINEMA') && validAmount(me.otherRub, 'OTHER')) {
+      state.card = { CINEMA: me.cinemaRub, OTHER: me.otherRub };
+    }
+    state.spentBase = { CINEMA: 0, OTHER: 0 };
+    plan = null;
+    save();
+    render();
   }
 
   /* ---- Смена точки в профиле -------------------------------------------
