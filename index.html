@@ -11,7 +11,7 @@
 <meta name="eventloop-api" content="https://platforms-fed-patrick-george.trycloudflare.com">
 <!-- ?v= — версия выкатки: GitHub Pages кеширует файлы на 10 минут, и без неё
      новая страница подтягивала старые стили и афишу. Меняется при каждой выкатке. -->
-<link rel="stylesheet" href="styles.css?v=20261025-5">
+<link rel="stylesheet" href="styles.css?v=20261025-6">
 </head>
 <body>
 
@@ -80,26 +80,11 @@
       <h1 class="welcome__title">Находи события<br>по-своему</h1>
       <ul class="welcome__modes">
         <li class="mode">
-          <span class="mode__art" aria-hidden="true">
-            <span class="mode__pair">
-              <span class="mode__chip"><svg class="ic ic--16"><use href="#icon-close"></use></svg></span>
-              <span class="mode__chip mode__chip--on"><svg class="ic ic--16"><use href="#icon-heart"></use></svg></span>
-            </span>
-            <svg class="mode__swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 8h15M15 4l4 4-4 4"/><path d="M20 16H5M9 12l-4 4 4 4"/>
-            </svg>
-          </span>
+          <img class="mode__art" src="assets/mode-swipe.png" alt="">
           <span class="mode__text"><b>Выбирай мероприятия</b>Листай карточки и&nbsp;отмечай, куда хочешь сходить.</span>
         </li>
         <li class="mode">
-          <span class="mode__art" aria-hidden="true">
-            <svg class="mode__wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M19 7V5.5A1.5 1.5 0 0 0 17.5 4h-12A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/><path d="M14 10h6.5v6H14a3 3 0 0 1 0-6Z"/>
-            </svg>
-            <span class="mode__tickets">
-              <svg class="ic ic--16"><use href="#icon-ticket"></use></svg><svg class="ic ic--16"><use href="#icon-ticket"></use></svg><svg class="ic ic--16"><use href="#icon-ticket"></use></svg>
-            </span>
-          </span>
+          <img class="mode__art" src="assets/mode-tickets.png" alt="">
           <span class="mode__text"><b>Потрать весь остаток</b>Собери подборку событий на&nbsp;сумму своей карты.</span>
         </li>
       </ul>
@@ -214,6 +199,7 @@
         </button>
         <h1 class="head__title">Статистика</h1>
       </div>
+      <p class="stats-demo">Демо-доступ: статистика открыта всем, чтобы показать экспертам аналитику проекта. В проде она будет видна только администратору.</p>
       <p class="stats-status" id="stats-status"></p>
       <div class="stats" id="stats-body"></div>
     </div>
@@ -297,9 +283,9 @@
 
 <!-- Мост MAX: даёт window.WebApp с параметром запуска из кнопки бота. -->
 <script src="https://st.max.ru/js/max-web-app.js"></script>
-<script src="format.js?v=20261025-5"></script>
-<script src="data.js?v=20261025-5"></script>
-<script src="plan.js?v=20261025-5"></script>
-<script src="app.js?v=20261025-5"></script>
+<script src="format.js?v=20261025-6"></script>
+<script src="data.js?v=20261025-6"></script>
+<script src="plan.js?v=20261025-6"></script>
+<script src="app.js?v=20261025-6"></script>
 </body>
 </html>
