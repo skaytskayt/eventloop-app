@@ -614,9 +614,11 @@
   var touched = false;
   var seen = {};
 
-  function send(action, eventId) {
+  // fallback — для события, которое уже выпало из афиши: отмену такой покупки
+  // сервер всё равно должен узнать, иначе билет вернётся при следующем заходе.
+  function send(action, eventId, fallback) {
     if (!INIT) { return; }
-    var item = byEventId(eventId);
+    var item = byEventId(eventId) || fallback;
     if (!item) { return; }
     if (!NEUTRAL[action]) { touched = true; }
     try {
@@ -1810,10 +1812,10 @@
   /* Отмена ошибочного «Да»: деньги возвращаются, событие едет обратно в
    * «Пойду» — оттуда оно и ушло, и туда же человек полезет его искать. */
   function cancelPurchase(eventId) {
-    var before = state.bought.length;
+    var gone = state.bought.filter(function (b) { return b.eventId === eventId; })[0];
+    if (!gone) { return; }
     state.bought = state.bought.filter(function (b) { return b.eventId !== eventId; });
-    if (state.bought.length === before) { return; }
-    send('PURCHASE_CANCEL', eventId);
+    send('PURCHASE_CANCEL', eventId, { eventId: eventId, priceRub: gone.priceRub });
     if (state.liked.indexOf(eventId) < 0) { state.liked.push(eventId); }
     save();
     toast('Покупка отменена');
