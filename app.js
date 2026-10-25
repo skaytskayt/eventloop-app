@@ -34,7 +34,7 @@
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
   // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 10, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -85,7 +85,7 @@
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
         spentBase: state.spentBase, undo: state.undo,
-        cats: state.cats, date: state.date, km: state.km, origin: state.origin, originName: state.originName
+        cats: state.cats, date: state.date, radius: state.km, origin: state.origin, originName: state.originName
       })); } catch (e) { /* приватный режим */ }
   }
 
@@ -108,7 +108,9 @@
       if (v && v.undo instanceof Array) { state.undo = v.undo.filter(function (id) { return typeof id === 'number'; }); }
       if (v && v.cats instanceof Array) { state.cats = v.cats; }
       if (v && DATES[v.date]) { state.date = v.date; }
-      if (v && KMS.indexOf(v.km) >= 0) { state.km = v.km; }
+      // Поле «radius», а не прежнее «km»: там у всех записалось «до 10 км»
+      // по умолчанию, а теперь по умолчанию расстояние неважно.
+      if (v && KMS.indexOf(v.radius) >= 0) { state.km = v.radius; }
       if (v && v.origin && validOrigin(v.origin.lat, v.origin.lon)) {
         state.origin = { lat: v.origin.lat, lon: v.origin.lon };
         if (typeof v.originName === 'string') { state.originName = v.originName.slice(0, 128); }
@@ -189,7 +191,8 @@
 
   var ORIGIN_ERRORS = {
     404: 'Не нашёл такой адрес в Москве или Казани. Попробуй точнее — улица и дом.',
-    409: 'Сначала пройди анкету в боте.'
+    409: 'Сначала пройди анкету в боте.',
+    422: 'Это весь город. Напиши точнее: улицу и дом или станцию метро.'
   };
 
   function originMsg(text, isError) {
@@ -549,7 +552,7 @@
 
   function fits(e) {
     if (state.cats.length && state.cats.indexOf(e.category) < 0) { return false; }
-    if (e.distanceKm > state.km) { return false; }
+    if (state.km && e.distanceKm > state.km) { return false; }
     var b = bounds(state.date, Date.now());
     var t = new Date(e.startsAt).getTime();
     return t >= b.from && (b.until === null || t < b.until);
@@ -901,7 +904,7 @@
     var row = el('div', 'drops');
     row.appendChild(drop('date', DATES[state.date], state.date !== 'ANY'));
     row.appendChild(drop('cats', catsLabel(), state.cats.length > 0));
-    row.appendChild(drop('km', 'До ' + state.km + ' км', state.km !== DEFAULT_KM));
+    row.appendChild(drop('km', state.km ? kmLabel(state.km) : 'Расстояние', state.km !== DEFAULT_KM));
     host.appendChild(row);
 
     if (state.open) { host.appendChild(menu(state.open)); }
@@ -931,7 +934,7 @@
       });
     } else if (kind === 'km') {
       KMS.forEach(function (km) {
-        box.appendChild(option('До ' + km + ' км', state.km === km, function () { state.km = km; applyFilters(true); }));
+        box.appendChild(option(kmLabel(km), state.km === km, function () { state.km = km; applyFilters(true); }));
       });
     } else {
       box.appendChild(option('Все категории', !state.cats.length, function () { state.cats = []; applyFilters(false); }));
@@ -1042,6 +1045,8 @@
     var slot = document.getElementById('feed-card');
     slot.replaceChildren();
     document.getElementById('feed-back').hidden = !state.undo.length;
+    document.getElementById('feed-plan-sum').textContent =
+      'Подборка на ' + Fmt.money(leftIn('CINEMA') + leftIn('OTHER'));
 
     var list = deck();
     if (!list.length) {
@@ -1975,8 +1980,13 @@
   // Варианты радиуса и значение по умолчанию. 1 и 2 км нужны Казани: все её
   // площадки в трёх километрах от центра, и без мелких шагов фильтр там
   // ничего не менял.
-  var KMS = [1, 2, 3, 5, 10, 20, 50];
-  var DEFAULT_KM = 10;
+  // 0 — «неважно»: расстояние в фильтре не участвует.
+  var KMS = [0, 1, 2, 3, 5, 10, 20, 50];
+  var DEFAULT_KM = 0;
+
+  function kmLabel(km) {
+    return km ? 'До ' + km + ' км' : 'Неважно';
+  }
 
   var NOTHING = 'Под выбранные фильтры ничего не нашлось. Смягчи их — и события вернутся.';
 

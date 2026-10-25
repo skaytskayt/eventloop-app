@@ -185,8 +185,8 @@ body.is-dark { background: var(--card); }
 .feed-card-slot > .bigcard {
   min-height: 580px;
   /* Вслед за фото: 260 px — текст и кнопки под ним. */
-  min-height: calc(clamp(150px, calc(100vh - 432px), 320px) + 260px);
-  min-height: calc(clamp(150px, calc(100dvh - 432px), 320px) + 260px);
+  min-height: calc(clamp(150px, calc(100vh - 492px), 320px) + 260px);
+  min-height: calc(clamp(150px, calc(100dvh - 492px), 320px) + 260px);
   display: flex;
   flex-direction: column;
 }
@@ -234,7 +234,7 @@ body.is-dark { background: var(--card); }
 .bigcard.is-dragging { transition: none; }
 
 /* Фото ужимается на низких экранах, чтобы карточка с кнопками влезала целиком. */
-.bigcard__photo { position: relative; height: 320px; height: clamp(150px, calc(100vh - 432px), 320px); height: clamp(150px, calc(100dvh - 432px), 320px); }
+.bigcard__photo { position: relative; height: 320px; height: clamp(150px, calc(100vh - 492px), 320px); height: clamp(150px, calc(100dvh - 492px), 320px); }
 .bigcard__photo img { width: 100%; height: 100%; object-fit: cover; display: block; filter: brightness(1.14) contrast(1.06) saturate(1.05); }
 .bigcard__photo::after {
   content: '';
@@ -437,7 +437,7 @@ body.is-dark { background: var(--card); }
 .ticket__venue { margin: 4px 0 0; font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ticket .meta { margin-top: 4px; font-size: 12px; color: var(--ink-soft); }
 .ticket .meta span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ticket__side { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ticket__side { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 /* Плашка по ширине текста, а не во всю колонку. */
 .ticket__price {
   display: inline-flex;
@@ -1191,27 +1191,35 @@ body.is-dark .nav__item.is-on { color: var(--lilac); }
 .stats-empty { margin: 0; font-size: 14px; color: var(--ink-soft); }
 
 /* ---- «Потратить весь баланс» ---------------------------------------------
- * Вход — пилюля в строке счётчика подборки: отдельная строка сдвинула бы
- * карточку, а она подогнана под высоту экрана. */
+ * Вход — плашка на всю ширину между фильтрами и колодой: пилюля в строке
+ * счётчика терялась и выглядела случайной. Под неё фото карточки ужато
+ * (см. 492px в высоте .bigcard__photo), чтобы карточка влезала в экран. */
 
-.plan-pill {
-  flex: none;
+.plan-banner {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 12px;
+  gap: 12px;
+  width: calc(100% - 2 * var(--gutter));
+  margin: 10px var(--gutter) 0;
+  padding: 8px 12px 8px 8px;
   border: 0;
-  border-radius: var(--r-pill);
-  background: var(--violet);
-  color: #fff;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
+  text-align: left;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(108,75,240,.28);
+  box-shadow: 0 1px 4px rgba(30,20,80,.06);
 }
+.plan-banner__ic {
+  flex: none; width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: #ece7ff; color: var(--violet);
+}
+.plan-banner__ic svg { width: 22px; height: 22px; }
+.plan-banner__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 12px; color: var(--ink-soft); }
+.plan-banner__text b { font-size: 15px; font-weight: 800; color: var(--ink); }
+.plan-banner__go { flex: none; width: 20px; height: 20px; color: var(--violet); }
 .deck-head .swipe__track { min-width: 24px; }
 
 .plan-sum {
