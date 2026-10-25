@@ -180,19 +180,32 @@ body.is-dark { background: var(--card); }
  * карточку. Правило только для подборки — на открытой карточке текст обязан
  * помещаться целиком, и там своя высота.
  *
- * min-height, а не height: если шрифт на устройстве окажется крупнее, карточки
- * вырастут все вместе и останутся равными, вместо того чтобы обрезать кнопку. */
-.feed-card-slot > .bigcard {
-  min-height: 580px;
-  /* Вслед за фото: 260 px — текст и кнопки под ним. */
-  min-height: calc(clamp(150px, calc(100vh - 492px), 320px) + 260px);
-  min-height: calc(clamp(150px, calc(100dvh - 492px), 320px) + 260px);
+ * Экран подборки не прокручивается: страница ездила вверх-вниз под пальцем,
+ * пока человек листал карточки. Карточка занимает всю высоту под плашками,
+ * а подстраивается под экран фото — текст и кнопки всегда целиком. */
+#screen-feed .screen__scroll {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#screen-feed .feed-card-slot {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.feed-card-slot > .bigcard .bigcard__photo { flex: none; }
-.feed-card-slot > .bigcard .bigcard__body {
+.feed-card-slot > .bigcard {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* Свайп по карточке не отдаёт движение пальца прокрутке. */
+  touch-action: none;
+}
+.feed-card-slot > .bigcard .bigcard__photo { flex: 1 1 0; min-height: 0; height: auto; }
+.feed-card-slot > .bigcard .bigcard__body {
+  flex: none;
   display: flex;
   flex-direction: column;
 }
