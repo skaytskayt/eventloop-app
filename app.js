@@ -34,7 +34,7 @@
   // card — сколько на каждом кошельке Пушкинской карты. Приходит из бота
   // ссылкой, до этого считаем от полного номинала.
   // origin — точка отсчёта из бота, {lat, lon}; null — центр Москвы.
-  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], spentBase: null, editWallet: null, origin: null, originName: null, formAt: null };
+  var state = { screen: 'screen-welcome', tab: 'liked', index: 0, detail: null, back: 'screen-feed', liked: [], saved: [], disliked: [], bought: [], pending: null, card: null, cats: [], date: 'ANY', km: 0, open: null, undo: [], baseIds: [], editWallet: null, origin: null, originName: null, formAt: null };
 
   /* ---- Мелкие помощники --------------------------------------------- */
 
@@ -84,7 +84,7 @@
     try { localStorage.setItem(KEY, JSON.stringify({
         liked: state.liked, saved: state.saved, disliked: state.disliked,
         bought: state.bought, pending: state.pending, card: state.card,
-        spentBase: state.spentBase, undo: state.undo,
+        baseIds: state.baseIds, undo: state.undo,
         cats: state.cats, date: state.date, radius: state.km, origin: state.origin, originName: state.originName,
         formAt: state.formAt
       })); } catch (e) { /* приватный режим */ }
@@ -103,8 +103,14 @@
       if (v && v.card && validAmount(v.card.CINEMA, 'CINEMA') && validAmount(v.card.OTHER, 'OTHER')) {
         state.card = { CINEMA: v.card.CINEMA, OTHER: v.card.OTHER };
       }
-      if (v && v.spentBase && validAmount(v.spentBase.CINEMA, 'CINEMA') && validAmount(v.spentBase.OTHER, 'OTHER')) {
-        state.spentBase = { CINEMA: v.spentBase.CINEMA, OTHER: v.spentBase.OTHER };
+      if (v && v.baseIds instanceof Array) {
+        state.baseIds = v.baseIds.filter(function (id) { return typeof id === 'number'; });
+      } else if (v && v.spentBase) {
+        // Прежний формат — сумма. Если она покрывала все покупки кошелька,
+        // считаем их учтёнными; иначе — не учтено ничего.
+        WALLET_ORDER.forEach(function (w) {
+          if (typeof v.spentBase[w] === 'number' && v.spentBase[w] > 0 && v.spentBase[w] >= spentIn(w)) { markBase(w); }
+        });
       }
       if (v && v.undo instanceof Array) { state.undo = v.undo.filter(function (id) { return typeof id === 'number'; }); }
       if (v && v.cats instanceof Array) { state.cats = v.cats; }
@@ -210,7 +216,7 @@
     if (me.registered && validAmount(me.cinemaRub, 'CINEMA') && validAmount(me.otherRub, 'OTHER')) {
       state.card = { CINEMA: me.cinemaRub, OTHER: me.otherRub };
     }
-    state.spentBase = { CINEMA: 0, OTHER: 0 };
+    state.baseIds = [];
     plan = null;
     save();
     render();
@@ -330,7 +336,7 @@
       // и обнулять покупки, сделанные с тех пор, нельзя.
       if (state.card[pair[1]] === value) { return; }
       state.card[pair[1]] = value;
-      state.spentBase[pair[1]] = spentIn(pair[1]);
+      markBase(pair[1]);
       changed = true;
     });
     if (changed) { save(); }
@@ -450,7 +456,6 @@
   // Пока бот не сказал иного, считаем карту полной. Номиналы берутся отсюда же,
   // чтобы 2000 и 3000 не разъехались по двум местам.
   state.card = { CINEMA: WALLETS.CINEMA.share, OTHER: WALLETS.OTHER.share };
-  state.spentBase = { CINEMA: 0, OTHER: 0 };
 
   /* Сколько на каждом кошельке. Бот узнаёт обе суммы и передаёт их в параметре
    * запуска кнопки (1200_2500). Без параметров считаем от полного
@@ -468,10 +473,20 @@
   }
 
   /* Введённый вручную баланс — это остаток «здесь и сейчас», поэтому билеты,
-   * купленные до правки, второй раз не вычитаются. spentBase помнит, сколько
-   * было потрачено на момент ввода; вычитается только то, что потрачено после. */
+   * купленные до правки, второй раз не вычитаются. baseIds помнит, какие
+   * именно покупки уже учтены в сумме. Не сумму: покупка могла пропасть
+   * (отменили, новая анкета, синхронизация), и тогда сумма-зачёт съедала бы
+   * следующие покупки — деньги переставали списываться. */
   function spentSince(wallet) {
-    return Math.max(0, spentIn(wallet) - state.spentBase[wallet]);
+    return state.bought.reduce(function (sum, b) {
+      return b.wallet === wallet && state.baseIds.indexOf(b.eventId) < 0 ? sum + b.priceRub : sum;
+    }, 0);
+  }
+
+  function markBase(wallet) {
+    state.bought.forEach(function (b) {
+      if (b.wallet === wallet && state.baseIds.indexOf(b.eventId) < 0) { state.baseIds.push(b.eventId); }
+    });
   }
 
   function leftIn(wallet) {
@@ -1427,7 +1442,10 @@
         }));
       }
 
-      row = ticket(item, { buttons: [buyButton(item), routeGhost(item)], stub: stub, from: true, note: note });
+      // Отложенное — ещё не решение: купить можно, перенеся в «Пойду», а
+      // здесь только маршрут.
+      row = ticket(item, { buttons: liked ? [buyButton(item), routeGhost(item)] : [routeGhost(item)],
+        stub: stub, from: true, note: note });
       box.appendChild(row);
     });
   }
@@ -1767,7 +1785,7 @@
       if (isFinite(v)) {
         state.card[code] = v;
         // Всё, что куплено раньше, уже учтено во введённой сумме.
-        state.spentBase[code] = spentIn(code);
+        markBase(code);
         save();
       }
       render();
@@ -1936,6 +1954,13 @@
     var gone = state.bought.filter(function (b) { return b.eventId === eventId; })[0];
     if (!gone) { return; }
     state.bought = state.bought.filter(function (b) { return b.eventId !== eventId; });
+    // Покупка была уже учтена во введённом балансе — деньги возвращаем в сам
+    // баланс, иначе обещание «вернутся на кошелёк» не сбылось бы.
+    var base = state.baseIds.indexOf(eventId);
+    if (base >= 0) {
+      state.baseIds.splice(base, 1);
+      state.card[gone.wallet] = Math.min(WALLETS[gone.wallet].share, state.card[gone.wallet] + gone.priceRub);
+    }
     send('PURCHASE_CANCEL', eventId, { eventId: eventId, priceRub: gone.priceRub });
     if (state.liked.indexOf(eventId) < 0) { state.liked.push(eventId); }
     save();
@@ -2046,11 +2071,24 @@
    * ссылка на мероприятие копируется в буфер обмена. */
   function shareEvent(item) {
     var url = item.eventUrl || item.ticketUrl;
+    // Внутри MAX navigator.share молча не работает — делится мост MAX.
+    var text = item.title + ' — ' + item.venueName;
+    try {
+      if (window.WebApp && typeof window.WebApp.shareContent === 'function') {
+        Promise.resolve(window.WebApp.shareContent({ text: text, link: url }))
+          .catch(function () { copyFallback(url); });
+        return;
+      }
+    } catch (e) { /* мост без метода — дальше по-старому */ }
     if (navigator.share) {
-      navigator.share({ title: item.title, text: item.title + ' — ' + item.venueName, url: url })
+      navigator.share({ title: item.title, text: text, url: url })
         .catch(function () { /* человек закрыл меню — не ошибка */ });
       return;
     }
+    copyFallback(url);
+  }
+
+  function copyFallback(url) {
     copyText(url).then(
       function () { toast('Ссылка скопирована'); },
       function () { toast('Не получилось скопировать ссылку'); });
