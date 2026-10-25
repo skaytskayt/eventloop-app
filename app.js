@@ -760,7 +760,10 @@
     var p = el('div', 'price');
     if (withFrom) { p.appendChild(el('span', 'price__from', 'от')); }
     p.appendChild(el('span', 'price__value', Fmt.money(item.priceRub)));
-    p.appendChild(el('span', 'price__note', 'по Пушкинской карте'));
+    // Остатка кошелька не хватает — говорим сразу у цены, а не на кассе.
+    p.appendChild(el('span', 'price__note', item.priceRub > leftIn(walletOf(item.category))
+      ? 'по Пушкинской карте (не хватит денег)'
+      : 'по Пушкинской карте'));
     return p;
   }
 
@@ -1748,9 +1751,21 @@
     function apply(raw) {
       if (state.editWallet !== code) { return; }
       var v = Math.round(Number(raw));
+      // Больше номинала кошелька на карте не бывает: не обрезаем молча, а
+      // говорим об этом и оставляем поле открытым — пусть исправит.
+      if (isFinite(v) && (v < 0 || v > WALLETS[code].share)) {
+        box.classList.add('is-error');
+        var err = box.parentNode && box.parentNode.querySelector('.wallet__error');
+        if (!err) {
+          err = el('p', 'wallet__error');
+          box.after(err);
+        }
+        err.textContent = 'На «' + WALLETS[code].title + '» можно не больше ' + rub(WALLETS[code].share) + '.';
+        return;
+      }
       state.editWallet = null;
       if (isFinite(v)) {
-        state.card[code] = Math.min(Math.max(v, 0), WALLETS[code].share);
+        state.card[code] = v;
         // Всё, что куплено раньше, уже учтено во введённой сумме.
         state.spentBase[code] = spentIn(code);
         save();
@@ -2285,12 +2300,6 @@
       ? statsTile('Из «Пойду» в покупку', fmtPct(l.percent),
         count(l.part) + ' из ' + count(l.whole) + ' отмеченных купили')
       : statsTile('Из «Пойду» в покупку', '—', NO_DATA));
-
-    var a = s.active;
-    tiles.appendChild(count(a.week) > 0
-      ? statsTile('Активны', count(a.today) + ' / ' + a.week,
-        'сегодня / за 7 дней · новых сегодня: ' + count(a.newToday))
-      : statsTile('Активны', '—', NO_DATA));
 
     // Журнал приложения видит только тех, кто листал карточки из MAX; боту писали больше.
     var u = s.botUsers;
