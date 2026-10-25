@@ -171,15 +171,27 @@
 
   /* Без анкеты в боте у приложения нет ни баланса, ни точки, и подборка была
    * бы чужой. Открыли не кнопкой бота — спрашиваем сервер, прошёл ли человек
-   * анкету. Сеть или сервер подвели — не запираем: лучше подборка по умолчанию,
+   * анкету; заодно в любом случае берём с сервера точку. Сеть или сервер подвели — не запираем: лучше подборка по умолчанию,
    * чем пустой экран. */
-  function checkRegistered() {
+  function checkRegistered(fromBot) {
     if (!INIT) { return; }
     try {
       fetch(API + '/api/me', { headers: { 'X-Init-Data': INIT } })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (me) {
-          if (me && me.registered === false) { closeAsk(); go('screen-register'); }
+          // Кнопка бота уже значит, что анкета пройдена, — тогда нужна только точка.
+          if (!fromBot && me && me.registered === false) { closeAsk(); go('screen-register'); return; }
+          // Точку сменили в боте (/address), а открыли старой кнопкой или из меню —
+          // в ссылке прежние координаты. Сервер знает свежие.
+          var p = me && me.origin;
+          if (!p || !validOrigin(p.lat, p.lon)) { return; }
+          if (state.origin && state.origin.lat === p.lat && state.origin.lon === p.lon) { return; }
+          state.origin = { lat: p.lat, lon: p.lon };
+          state.originName = typeof p.name === 'string' ? p.name.slice(0, 128) : null;
+          state.index = 0;
+          save();
+          prepareFeed();
+          render();
         })
         .catch(function () { /* нет связи — пускаем как есть */ });
     } catch (e) { /* WebView без fetch */ }
@@ -295,6 +307,9 @@
       if (raw === null || raw.trim() === '') { return; }
       var value = Math.round(Number(raw));
       if (!validAmount(value, pair[1])) { return; }
+      // Та же сумма — та же анкета: кнопка после /address несёт прежний баланс,
+      // и обнулять покупки, сделанные с тех пор, нельзя.
+      if (state.card[pair[1]] === value) { return; }
       state.card[pair[1]] = value;
       state.spentBase[pair[1]] = spentIn(pair[1]);
       changed = true;
@@ -1468,7 +1483,23 @@
     }
   }
 
+  /* Купили событие из подборки: оно уходит в «Купленное» профиля, остальные
+   * остаются как были. Остаток уменьшился ровно на цену купленного, поэтому
+   * подборку не пересобираем, а только принимаем новую подпись. */
+  function dropBought() {
+    if (!plan || !plan.result) { return; }
+    var r = plan.result;
+    var left = r.items.filter(function (e) { return !isBought(e.eventId); });
+    if (left.length === r.items.length) { return; }
+    if (!left.length) { plan = null; return; }
+    var paid = r.spent - left.reduce(function (s, e) { return s + e.priceRub; }, 0);
+    plan.result = { items: left, spent: r.spent - paid, budget: r.budget - paid, rest: r.rest, ok: r.ok };
+    plan.marked = plan.marked.filter(function (id) { return !isBought(id); });
+    plan.sig = planSig();
+  }
+
   function openPlan() {
+    dropBought();
     if (!plan || plan.sig !== planSig()) { makePlan([], 0); }
     go('screen-plan');
   }
@@ -1478,8 +1509,9 @@
     box.replaceChildren();
     if (state.screen !== 'screen-plan') { return; }
 
+    dropBought();
     if (!plan || plan.sig !== planSig()) { makePlan([], 0); }
-    // Событие могли оценить или купить в открытой карточке — его место
+    // Событие могли оценить в открытой карточке — его место
     // занимает замена, остальное не трогаем.
     if (plan.result) {
       var cand = planCandidates();
@@ -2186,6 +2218,13 @@
         'сегодня / за 7 дней · новых сегодня: ' + count(a.newToday))
       : statsTile('Активны', '—', NO_DATA));
 
+    // Журнал приложения видит только тех, кто листал карточки из MAX; боту писали больше.
+    var u = s.botUsers;
+    if (u) {
+      tiles.appendChild(statsTile('Пользовались ботом', fmtNum(count(u.total)),
+        'прошли анкету: ' + count(u.registered)));
+    }
+
     return tiles;
   }
 
@@ -2484,7 +2523,7 @@
   // На статистике не спрашиваем: модальное окно закрыло бы доску на защите,
   // а вопрос останется в хранилище до обычного открытия.
   if (!forStats && !unregistered) { askPurchase(); }
-  if (!forStats && !openedFromBot()) { checkRegistered(); }
+  if (!forStats) { checkRegistered(openedFromBot()); }
   // Отметки с сервера — после первой отрисовки: локальный кеш показываем сразу.
   pull();
 })();
