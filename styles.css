@@ -732,6 +732,8 @@ body.is-dark { background: var(--card); }
 .done--inline { margin: 0; padding: 44px 0 16px; }
 .done--inline .done__art { max-width: 260px; }
 .done--inline .done__title { margin-top: 30px; font-size: 24px; }
+/* В «Весь баланс» нет слота карточки с отступами — текст не должен липнуть к краям. */
+#plan-body .done--inline { padding-left: 28px; padding-right: 28px; }
 
 /* ---- Подробная карточка ------------------------------------------------- */
 
